@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Integrado - SugarBI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #4285f4;
+            --secondary-color: #34a853;
+            --accent-color: #fbbc04;
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --background: #ffffff;
+            --surface: #f8f9fa;
+            --border: #dadce0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
+        
+        body {
+            font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .navbar {
+            background-color: var(--background);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+        }
+        
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+        
+        .nav-link {
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+        
+        .nav-link:hover {
+            color: var(--primary-color);
+        }
+        
+        .main-container {
+            padding: 20px;
+            width: 100%;
+            margin: 0;
+        }
+        
+        .header-section {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+        }
+        
+        .header-section h1 {
+            font-size: 2rem;
+            font-weight: 300;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+        
+        .header-section p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr 350px;
+            gap: 20px;
+            height: calc(100vh - 200px);
+            min-height: 600px;
+            width: 100%;
+        }
+        
+        .chat-panel {
+            background-color: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+            font-weight: 500;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .message-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        
+        .bot-avatar {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .user-avatar {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .message-content {
+            flex: 1;
+            background-color: var(--surface);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .user-message .message-content {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .chat-input {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .form-control {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            border-radius: 6px;
+            padding: 10px 16px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #3367d6;
+            border-color: #3367d6;
+        }
+        
+        .visualization-panel {
+            background-color: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .viz-header {
+            background-color: var(--surface);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .viz-title {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .viz-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-outline {
+            border: 1px solid var(--border);
+            background-color: transparent;
+            color: var(--text-secondary);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-outline:hover {
+            background-color: var(--surface);
+            color: var(--text-primary);
+        }
+        
+        .viz-content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: var(--border);
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: var(--text-secondary);
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .summary-panel {
+            background-color: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .summary-header {
+            background-color: var(--surface);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            border-radius: 8px 8px 0 0;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .summary-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .summary-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .summary-icon {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+        
+        .summary-info {
+            flex: 1;
+        }
+        
+        .summary-number {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .summary-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .dimensions-section, .table-section {
+            margin-bottom: 20px;
+        }
+        
+        .dimensions-section h6, .table-section h6 {
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        
+        .dimension-item {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        .table-container {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            min-height: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .table-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--text-secondary);
+        }
+        
+        .table-placeholder i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--border);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-seedling" style="color: #34a853;"></i> SugarBI
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/dashboard">
+                    <i class="fas fa-chart-bar"></i> Dashboard
+                </a>
+                <a class="nav-link" href="/chatbot">
+                    <i class="fas fa-robot"></i> Chatbot
+                </a>
+                <a class="nav-link" href="/olap">
+                    <i class="fas fa-cube"></i> OLAP
+                </a>
+                <a class="nav-link" href="/logout">
+                    <i class="fas fa-sign-out-alt"></i> Salir
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <div class="header-section">
+            <h1><i class="fas fa-chart-line"></i> Dashboard Integrado SugarBI</h1>
+            <p>Análisis inteligente de datos de cosecha con chatbot integrado</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Chat Panel -->
+            <div class="chat-panel">
+                <div class="chat-header">
+                    <i class="fas fa-comments"></i> Conversación
+                </div>
+                
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message">
+                        <div class="message-avatar bot-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="message-content">
+                            <strong>SugarBI:</strong>
+                            <p class="mb-2">¡Hola! Soy tu asistente de análisis de datos de cosecha. Puedes preguntarme cosas como:</p>
+                            <ul class="mb-0 small">
+                                <li>"Muéstrame el top 10 de fincas por producción"</li>
+                                <li>"¿Cuáles son las mejores variedades por TCH?"</li>
+                                <li>"Muéstrame la producción por zona en 2025"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-input">
+                    <div class="input-group">
+                        <input type="text" id="query-input" class="form-control" 
+                               placeholder="Escribe tu consulta aquí..." 
+                               onkeypress="handleKeyPress(event)">
+                        <button class="btn btn-primary" onclick="sendQuery()">
+                            <i class="fas fa-paper-plane"></i> Enviar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visualization Panel -->
+            <div class="visualization-panel">
+                <div class="viz-header">
+                    <div class="viz-title">
+                        <i class="fas fa-chart-line"></i> Visualización
+                    </div>
+                    <div class="viz-actions">
+                        <button class="btn-outline" onclick="exportChart()">
+                            <i class="fas fa-download"></i> Exportar
+                        </button>
+                        <button class="btn-outline" onclick="refreshChart()">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="viz-content" id="viz-content">
+                    <div class="empty-state">
+                        <i class="fas fa-chart-bar"></i>
+                        <h5>Sin visualización</h5>
+                        <p>Haz una consulta en el chatbot para generar una visualización</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Panel -->
+            <div class="summary-panel">
+                <div class="summary-header">
+                    <i class="fas fa-chart-pie"></i> Resumen de Datos
+                </div>
+                
+                <div class="summary-content">
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <div class="summary-icon">
+                                <i class="fas fa-leaf"></i>
+                            </div>
+                            <div class="summary-info">
+                                <div class="summary-number" id="total-fincas">-</div>
+                                <div class="summary-label">Fincas</div>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-card">
+                            <div class="summary-icon">
+                                <i class="fas fa-seedling"></i>
+                            </div>
+                            <div class="summary-info">
+                                <div class="summary-number" id="total-variedades">-</div>
+                                <div class="summary-label">Variedades</div>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-card">
+                            <div class="summary-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div class="summary-info">
+                                <div class="summary-number" id="total-zonas">-</div>
+                                <div class="summary-label">Zonas</div>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-card">
+                            <div class="summary-icon">
+                                <i class="fas fa-weight"></i>
+                            </div>
+                            <div class="summary-info">
+                                <div class="summary-number" id="total-toneladas">-</div>
+                                <div class="summary-label">Toneladas</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="dimensions-section">
+                        <h6><i class="fas fa-list"></i> Dimensiones</h6>
+                        <div class="dimension-item">
+                            <i class="fas fa-building"></i> Fincas
+                        </div>
+                        <div class="dimension-item">
+                            <i class="fas fa-seedling"></i> Variedades
+                        </div>
+                        <div class="dimension-item">
+                            <i class="fas fa-map"></i> Zonas
+                        </div>
+                        <div class="dimension-item">
+                            <i class="fas fa-calendar"></i> Tiempo
+                        </div>
+                    </div>
+                    
+                    <div class="table-section">
+                        <h6><i class="fas fa-table"></i> Tabla Dinámica</h6>
+                        <div class="table-container" id="dynamic-table">
+                            <div class="table-placeholder">
+                                <i class="fas fa-table"></i>
+                                <p>Haz una consulta para ver los datos</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentChart = null;
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendQuery();
+            }
+        }
+
+        async function sendQuery() {
+            const input = document.getElementById('query-input');
+            const query = input.value.trim();
+            
+            if (!query) return;
+            
+            // Agregar mensaje del usuario
+            addMessage(query, 'user');
+            input.value = '';
+            
+            // Mostrar loading
+            addMessage('Procesando consulta...', 'bot', true);
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+                
+                const result = await response.json();
+                
+                // Remover mensaje de loading
+                removeLastMessage();
+                
+                if (result.success) {
+                    // Agregar respuesta del bot
+                    addMessage(result.response, 'bot');
+                    
+                    // Si hay visualización, mostrarla
+                    if (result.visualization) {
+                        showVisualization(result.visualization);
+                    }
+                    
+                    // Si hay datos, actualizar la tabla dinámica
+                    if (result.raw_data) {
+                        updateDynamicTable(result.raw_data);
+                    }
+                } else {
+                    addMessage('Error: ' + result.error, 'bot');
+                }
+            } catch (error) {
+                removeLastMessage();
+                addMessage('Error de conexión: ' + error.message, 'bot');
+            }
+        }
+
+        function addMessage(content, type, isLoading = false) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type === 'user' ? 'user-message' : ''}`;
+            
+            const avatarClass = type === 'user' ? 'user-avatar' : 'bot-avatar';
+            const avatarIcon = type === 'user' ? 'fas fa-user' : 'fas fa-robot';
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar ${avatarClass}">
+                    <i class="${avatarIcon}"></i>
+                </div>
+                <div class="message-content">
+                    ${isLoading ? '<div class="loading"><div class="spinner"></div> Procesando...</div>' : content}
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function removeLastMessage() {
+            const messagesContainer = document.getElementById('chat-messages');
+            const lastMessage = messagesContainer.lastElementChild;
+            if (lastMessage) {
+                messagesContainer.removeChild(lastMessage);
+            }
+        }
+
+        function showVisualization(vizData) {
+            const vizContent = document.getElementById('viz-content');
+            
+            if (currentChart) {
+                currentChart.destroy();
+            }
+            
+            vizContent.innerHTML = `
+                <div class="chart-container">
+                    <canvas id="chart-canvas"></canvas>
+                </div>
+            `;
+            
+            const ctx = document.getElementById('chart-canvas').getContext('2d');
+            
+            // Crear gráfico basado en el tipo
+            if (vizData.type === 'bar') {
+                currentChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: vizData.labels,
+                        datasets: [{
+                            label: vizData.title,
+                            data: vizData.data,
+                            backgroundColor: 'rgba(66, 133, 244, 0.8)',
+                            borderColor: 'rgba(66, 133, 244, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: vizData.title
+                            }
+                        }
+                    }
+                });
+            } else if (vizData.type === 'line') {
+                currentChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: vizData.labels,
+                        datasets: [{
+                            label: vizData.title,
+                            data: vizData.data,
+                            borderColor: 'rgba(52, 168, 83, 1)',
+                            backgroundColor: 'rgba(52, 168, 83, 0.1)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: vizData.title
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function exportChart() {
+            if (currentChart) {
+                const url = currentChart.toBase64Image();
+                const link = document.createElement('a');
+                link.download = 'sugarbi-chart.png';
+                link.href = url;
+                link.click();
+            }
+        }
+
+        function refreshChart() {
+            // Recargar la última consulta
+            const messages = document.querySelectorAll('.message-content');
+            for (let i = messages.length - 1; i >= 0; i--) {
+                const content = messages[i].textContent.trim();
+                if (content && !content.includes('SugarBI:') && !content.includes('Procesando')) {
+                    document.getElementById('query-input').value = content;
+                    sendQuery();
+                    break;
+                }
+            }
+        }
+
+        // Cargar estadísticas del sistema
+        async function loadSystemStats() {
+            try {
+                const response = await fetch('/api/estadisticas');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const stats = result.data;
+                    document.getElementById('total-fincas').textContent = stats.total_dimfinca || 0;
+                    document.getElementById('total-variedades').textContent = stats.total_dimvariedad || 0;
+                    document.getElementById('total-zonas').textContent = stats.total_dimzona || 0;
+                    document.getElementById('total-toneladas').textContent = (stats.total_toneladas || 0).toLocaleString();
+                }
+            } catch (error) {
+                console.log('Error cargando estadísticas:', error);
+            }
+        }
+
+        // Actualizar tabla dinámica
+        function updateDynamicTable(data) {
+            const tableContainer = document.getElementById('dynamic-table');
+            
+            if (!data || data.length === 0) {
+                tableContainer.innerHTML = `
+                    <div class="table-placeholder">
+                        <i class="fas fa-table"></i>
+                        <p>No hay datos para mostrar</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Crear tabla HTML
+            const table = document.createElement('table');
+            table.className = 'table table-sm';
+            
+            // Crear encabezados
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            Object.keys(data[0]).forEach(key => {
+                const th = document.createElement('th');
+                th.textContent = key;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            
+            // Crear filas de datos
+            const tbody = document.createElement('tbody');
+            data.slice(0, 10).forEach(row => { // Mostrar solo las primeras 10 filas
+                const tr = document.createElement('tr');
+                Object.values(row).forEach(value => {
+                    const td = document.createElement('td');
+                    td.textContent = value;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            
+            tableContainer.innerHTML = '';
+            tableContainer.appendChild(table);
+        }
+
+        // Cargar estadísticas al cargar la página
+        document.addEventListener('DOMContentLoaded', loadSystemStats);
+    </script>
+</body>
+</html>

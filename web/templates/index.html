@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - SugarBI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="jumbotron bg-primary text-white p-5 rounded mb-4">
+            <h1 class="display-4"><i class="fas fa-seedling"></i> SugarBI</h1>
+            <p class="lead">Sistema de Business Intelligence para Análisis de Datos de Cosecha de Caña de Azúcar</p>
+            <hr class="my-4">
+            <p>Analiza, visualiza y obtén insights de tus datos de cosecha con consultas en lenguaje natural.</p>
+            <div class="d-flex gap-3 flex-wrap">
+                <a class="btn btn-light btn-lg" href="/dashboard-alternativo" role="button">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard Integrado
+                </a>
+                <a class="btn btn-outline-light btn-lg" href="/chatbot" role="button">
+                    <i class="fas fa-robot"></i> Solo Chatbot
+                </a>
+                <a class="btn btn-outline-light btn-lg" href="/dashboard" role="button">
+                    <i class="fas fa-chart-bar"></i> Solo Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Características principales -->
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 border-primary">
+            <div class="card-body text-center">
+                <i class="fas fa-tachometer-alt fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Dashboard Integrado</h5>
+                <p class="card-text">
+                    <strong>¡NUEVO!</strong> Interfaz unificada con chatbot y visualizaciones en una sola pantalla. 
+                    Chatbot a la izquierda (25%) y gráficos a la derecha (75%).
+                </p>
+                <a href="/dashboard-alternativo" class="btn btn-primary">Probar Ahora</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+                <h5 class="card-title">Visualizaciones Dinámicas</h5>
+                <p class="card-text">
+                    Genera automáticamente gráficos, tablas y dashboards basados en tus consultas. 
+                    Soporte para múltiples tipos de visualizaciones.
+                </p>
+                <a href="/dashboard" class="btn btn-success">Ver Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-database fa-3x text-info mb-3"></i>
+                <h5 class="card-title">Data Mart Completo</h5>
+                <p class="card-text">
+                    Acceso a datos estructurados de fincas, variedades, zonas y métricas de cosecha. 
+                    Análisis multidimensional completo.
+                </p>
+                <a href="/api/" class="btn btn-info">Explorar API</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 border-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-cube fa-3x text-warning mb-3"></i>
+                <h5 class="card-title">Análisis OLAP</h5>
+                <p class="card-text">
+                    <strong>¡NUEVO!</strong> Análisis multidimensional con operaciones drill-down, roll-up, slice, dice y pivot. 
+                    Explora tus datos desde diferentes perspectivas.
+                </p>
+                <a href="/olap" class="btn btn-warning">Probar OLAP</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-robot fa-3x text-secondary mb-3"></i>
+                <h5 class="card-title">Chatbot Inteligente</h5>
+                <p class="card-text">
+                    Consulta tus datos en lenguaje natural. El sistema entiende español y genera 
+                    visualizaciones automáticamente.
+                </p>
+                <a href="/chatbot" class="btn btn-secondary">Probar Chatbot</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-bar fa-3x text-success mb-3"></i>
+                <h5 class="card-title">Visualizaciones Avanzadas</h5>
+                <p class="card-text">
+                    Gráficos interactivos, tablas dinámicas y dashboards personalizables. 
+                    Exporta datos en múltiples formatos.
+                </p>
+                <a href="/dashboard" class="btn btn-success">Ver Gráficos</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Estadísticas del sistema -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie"></i> Estadísticas del Sistema</h5>
+            </div>
+            <div class="card-body">
+                <div class="row" id="system-stats">
+                    <div class="col-md-3 text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2">Cargando estadísticas...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Ejemplos de consultas -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-lightbulb"></i> Ejemplos de Consultas</h5>
+            </div>
+            <div class="card-body">
+                <div id="example-queries-list">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información técnica -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Información Técnica</h5>
+            </div>
+            <div class="card-body">
+                <h6>Arquitectura del Sistema</h6>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> <strong>API REST:</strong> Endpoints para acceso a datos</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Chatbot:</strong> Procesamiento de lenguaje natural</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Dashboard:</strong> Visualizaciones interactivas</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Data Mart:</strong> Modelo dimensional optimizado</li>
+                </ul>
+                
+                <h6 class="mt-3">Tecnologías</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge bg-primary">Python</span>
+                    <span class="badge bg-success">Flask</span>
+                    <span class="badge bg-info">MySQL</span>
+                    <span class="badge bg-warning">Chart.js</span>
+                    <span class="badge bg-secondary">Bootstrap</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Cargar estadísticas del sistema
+async function loadSystemStats() {
+    try {
+        const response = await fetch('/api/estadisticas');
+        const result = await response.json();
+        
+        if (result.success) {
+            const stats = result.data;
+            const statsDiv = document.getElementById('system-stats');
+            
+            statsDiv.innerHTML = `
+                <div class="col-md-3 text-center">
+                    <h3 class="text-primary">${stats.total_hechos_cosecha.toLocaleString()}</h3>
+                    <p class="text-muted">Registros de Cosecha</p>
+                </div>
+                <div class="col-md-3 text-center">
+                    <h3 class="text-success">${stats.total_dimfinca}</h3>
+                    <p class="text-muted">Fincas</p>
+                </div>
+                <div class="col-md-3 text-center">
+                    <h3 class="text-info">${stats.total_dimvariedad}</h3>
+                    <p class="text-muted">Variedades</p>
+                </div>
+                <div class="col-md-3 text-center">
+                    <h3 class="text-warning">${stats.total_toneladas.toLocaleString()}</h3>
+                    <p class="text-muted">Toneladas Totales</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading system stats:', error);
+        document.getElementById('system-stats').innerHTML = `
+            <div class="col-12 text-center">
+                <p class="text-muted">No se pudieron cargar las estadísticas</p>
+            </div>
+        `;
+    }
+}
+
+// Cargar ejemplos de consultas
+async function loadExampleQueries() {
+    try {
+        const response = await fetch('/api/examples');
+        const result = await response.json();
+        
+        if (result.success) {
+            const examplesDiv = document.getElementById('example-queries-list');
+            examplesDiv.innerHTML = '';
+            
+            result.data.examples.forEach(example => {
+                const div = document.createElement('div');
+                div.className = 'example-query mb-2';
+                div.textContent = example;
+                div.onclick = () => {
+                    window.location.href = `/chatbot?query=${encodeURIComponent(example)}`;
+                };
+                examplesDiv.appendChild(div);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading examples:', error);
+        document.getElementById('example-queries-list').innerHTML = `
+            <p class="text-muted">No se pudieron cargar los ejemplos</p>
+        `;
+    }
+}
+
+// Cargar datos al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    loadSystemStats();
+    loadExampleQueries();
+});
+</script>
+{% endblock %}
+

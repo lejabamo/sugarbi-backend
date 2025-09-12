@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot - SugarBI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4285f4;
+            --secondary-color: #34a853;
+            --accent-color: #fbbc04;
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --background: #ffffff;
+            --surface: #f8f9fa;
+            --border: #dadce0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
+        
+        body {
+            font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .navbar {
+            background-color: var(--background);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+        }
+        
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+        
+        .nav-link {
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+        
+        .nav-link:hover {
+            color: var(--primary-color);
+        }
+        
+        .main-container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header-section {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+        }
+        
+        .header-section h1 {
+            font-size: 2rem;
+            font-weight: 300;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+        
+        .header-section p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        .chat-container {
+            background-color: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            height: 500px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+            font-weight: 500;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 350px;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .message-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        
+        .bot-avatar {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .user-avatar {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .message-content {
+            flex: 1;
+            background-color: var(--surface);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .user-message .message-content {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .chat-input {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .form-control {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            border-radius: 6px;
+            padding: 10px 16px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #3367d6;
+            border-color: #3367d6;
+        }
+        
+        .examples-section {
+            margin-top: 30px;
+        }
+        
+        .example-item {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .example-item:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .loading {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: var(--text-secondary);
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-seedling" style="color: #34a853;"></i> SugarBI
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/dashboard">
+                    <i class="fas fa-chart-bar"></i> Dashboard
+                </a>
+                <a class="nav-link" href="/dashboard-alternativo">
+                    <i class="fas fa-chart-line"></i> Dashboard Integrado
+                </a>
+                <a class="nav-link" href="/olap">
+                    <i class="fas fa-cube"></i> OLAP
+                </a>
+                <a class="nav-link" href="/logout">
+                    <i class="fas fa-sign-out-alt"></i> Salir
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <div class="header-section">
+            <h1><i class="fas fa-robot"></i> Chatbot SugarBI</h1>
+            <p>Haz preguntas sobre los datos de cosecha en lenguaje natural</p>
+        </div>
+
+        <div class="chat-container">
+            <div class="chat-header">
+                <i class="fas fa-comments"></i> Conversación
+            </div>
+            
+            <div class="chat-messages" id="chat-messages">
+                <div class="message">
+                    <div class="message-avatar bot-avatar">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="message-content">
+                        <strong>SugarBI:</strong>
+                        <p class="mb-2">¡Hola! Soy tu asistente de análisis de datos de cosecha. Puedes preguntarme cosas como:</p>
+                        <ul class="mb-0 small">
+                            <li>"Muéstrame el top 10 de fincas por producción"</li>
+                            <li>"¿Cuáles son las mejores variedades por TCH?"</li>
+                            <li>"Muéstrame la producción por zona en 2025"</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input">
+                <div class="input-group">
+                    <input type="text" id="query-input" class="form-control" 
+                           placeholder="Escribe tu consulta aquí..." 
+                           onkeypress="handleKeyPress(event)">
+                    <button class="btn btn-primary" onclick="sendQuery()">
+                        <i class="fas fa-paper-plane"></i> Enviar
+                    </button>
+                </div>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <span>Procesando consulta...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="examples-section">
+            <h5><i class="fas fa-lightbulb"></i> Ejemplos de Consultas</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="example-item" onclick="setQuery('muestra la cantidad en toneladas de caña producida del top 10 de las fincas en el 2025')">
+                        Muestra la cantidad en toneladas de caña producida del top 10 de las fincas en el 2025
+                    </div>
+                    <div class="example-item" onclick="setQuery('¿cuáles son las 5 mejores variedades por TCH?')">
+                        ¿Cuáles son las 5 mejores variedades por TCH?
+                    </div>
+                    <div class="example-item" onclick="setQuery('muestra la producción por zona en 2024')">
+                        Muestra la producción por zona en 2024
+                    </div>
+                    <div class="example-item" onclick="setQuery('¿cuál es el promedio de brix por finca?')">
+                        ¿Cuál es el promedio de brix por finca?
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="example-item" onclick="setQuery('muestra la tendencia de producción por mes en 2025')">
+                        Muestra la tendencia de producción por mes en 2025
+                    </div>
+                    <div class="example-item" onclick="setQuery('¿cuáles son las fincas con mayor rendimiento?')">
+                        ¿Cuáles son las fincas con mayor rendimiento?
+                    </div>
+                    <div class="example-item" onclick="setQuery('muestra la distribución de producción por variedad')">
+                        Muestra la distribución de producción por variedad
+                    </div>
+                    <div class="example-item" onclick="setQuery('¿cuál es la producción total por año?')">
+                        ¿Cuál es la producción total por año?
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendQuery();
+            }
+        }
+
+        function setQuery(query) {
+            document.getElementById('query-input').value = query;
+        }
+
+        async function sendQuery() {
+            const input = document.getElementById('query-input');
+            const query = input.value.trim();
+            
+            if (!query) return;
+            
+            // Agregar mensaje del usuario
+            addMessage(query, 'user');
+            input.value = '';
+            
+            // Mostrar loading
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+                
+                const result = await response.json();
+                
+                // Ocultar loading
+                hideLoading();
+                
+                if (result.success) {
+                    // Agregar respuesta del bot
+                    addMessage(result.response, 'bot');
+                } else {
+                    addMessage('Error: ' + result.error, 'bot');
+                }
+            } catch (error) {
+                hideLoading();
+                addMessage('Error de conexión: ' + error.message, 'bot');
+            }
+        }
+
+        function addMessage(content, type) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type === 'user' ? 'user-message' : ''}`;
+            
+            const avatarClass = type === 'user' ? 'user-avatar' : 'bot-avatar';
+            const avatarIcon = type === 'user' ? 'fas fa-user' : 'fas fa-robot';
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar ${avatarClass}">
+                    <i class="${avatarIcon}"></i>
+                </div>
+                <div class="message-content">
+                    ${content}
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
+
+
+

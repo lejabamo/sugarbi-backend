@@ -1,0 +1,17 @@
+pandas
+SQLAlchemy
+PyMySQL
+python-dotenv
+openpyxl
+flask
+flask-cors
+numpy
+flask-login
+flask-wtf
+wtforms
+flask-limiter
+bcrypt
+pyjwt
+cryptography
+bleach
+validators
