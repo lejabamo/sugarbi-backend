@@ -1,0 +1,1096 @@
+{% extends "base.html" %}
+
+{% block title %}Análisis OLAP Interactivo - SugarBI{% endblock %}
+
+{% block extra_css %}
+<style>
+    .olap-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: calc(100vh - 76px);
+        padding: 20px 0;
+    }
+    
+    .olap-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        border: none;
+        margin-bottom: 20px;
+    }
+    
+    .control-panel {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+    }
+    
+    .dimension-box, .measure-box, .filter-box {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        border: 2px dashed rgba(255, 255, 255, 0.3);
+        min-height: 80px;
+        transition: all 0.3s ease;
+    }
+    
+    .dimension-box:hover, .measure-box:hover, .filter-box:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .dimension-item, .measure-item, .filter-item {
+        background: white;
+        color: #333;
+        padding: 8px 12px;
+        margin: 5px;
+        border-radius: 20px;
+        display: inline-block;
+        cursor: move;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .dimension-item:hover, .measure-item:hover, .filter-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    .pivot-table-container {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .pivot-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    
+    .pivot-table th, .pivot-table td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: center;
+        background: white;
+    }
+    
+    .pivot-table th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: bold;
+    }
+    
+    .pivot-table tr:nth-child(even) {
+        background: #f8f9fa;
+    }
+    
+    .pivot-table tr:hover {
+        background: #e3f2fd;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        margin-top: 20px;
+    }
+    
+    .operation-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 20px 0;
+    }
+    
+    .operation-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: bold;
+    }
+    
+    .operation-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .operation-btn.active {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .aggregation-panel {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+    }
+    
+    .aggregation-item {
+        background: white;
+        color: #333;
+        padding: 5px 10px;
+        margin: 3px;
+        border-radius: 15px;
+        display: inline-block;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+    
+    .aggregation-item:hover {
+        background: #e3f2fd;
+    }
+    
+    .aggregation-item.selected {
+        background: #2196f3;
+        color: white;
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    .loading-spinner {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+    }
+    
+    .stats-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 0.9rem;
+    }
+    
+    .drag-over {
+        background: rgba(255, 255, 255, 0.3) !important;
+        border-color: #2196f3 !important;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 20px;
+        color: #ddd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="olap-container">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="olap-card p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="mb-0">
+                                <i class="fas fa-cube text-primary"></i>
+                                Análisis OLAP Interactivo
+                            </h1>
+                            <p class="text-muted mb-0">Tablas dinámicas y análisis multidimensional</p>
+                        </div>
+                        <div>
+                            <a href="/dashboard" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                            <a href="/chatbot" class="btn btn-outline-success">
+                                <i class="fas fa-robot"></i> Chatbot
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="stats-cards">
+            <div class="stat-card">
+                <div class="stat-value" id="total-records">0</div>
+                <div class="stat-label">Registros</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="execution-time">0.000s</div>
+                <div class="stat-label">Tiempo</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="dimensions-count">0</div>
+                <div class="stat-label">Dimensiones</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="measures-count">0</div>
+                <div class="stat-label">Medidas</div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Panel de Control -->
+            <div class="col-lg-4">
+                <div class="control-panel">
+                    <h3 class="mb-4">
+                        <i class="fas fa-sliders-h"></i>
+                        Panel de Control
+                    </h3>
+                    
+                    <!-- Operaciones OLAP -->
+                    <div class="mb-4">
+                        <h5>Operaciones</h5>
+                        <div class="operation-buttons">
+                            <button class="operation-btn active" data-operation="aggregate">
+                                <i class="fas fa-plus"></i> Agregar
+                            </button>
+                            <button class="operation-btn" data-operation="drill_down">
+                                <i class="fas fa-search-plus"></i> Drill-Down
+                            </button>
+                            <button class="operation-btn" data-operation="roll_up">
+                                <i class="fas fa-search-minus"></i> Roll-Up
+                            </button>
+                            <button class="operation-btn" data-operation="slice">
+                                <i class="fas fa-cut"></i> Slice
+                            </button>
+                            <button class="operation-btn" data-operation="dice">
+                                <i class="fas fa-dice"></i> Dice
+                            </button>
+                            <button class="operation-btn" data-operation="pivot">
+                                <i class="fas fa-sync"></i> Pivot
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dimensiones -->
+                    <div class="mb-4">
+                        <h5><i class="fas fa-layer-group"></i> Dimensiones</h5>
+                        <div class="dimension-box" id="dimensions-box">
+                            <div class="empty-state">
+                                <i class="fas fa-layer-group"></i>
+                                <p>Arrastra dimensiones aquí</p>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <div class="dimension-item" draggable="true" data-dimension="tiempo" data-level="year">
+                                <i class="fas fa-calendar"></i> Tiempo (Año)
+                            </div>
+                            <div class="dimension-item" draggable="true" data-dimension="tiempo" data-level="month">
+                                <i class="fas fa-calendar-alt"></i> Tiempo (Mes)
+                            </div>
+                            <div class="dimension-item" draggable="true" data-dimension="geografia" data-level="zone">
+                                <i class="fas fa-map-marker-alt"></i> Zona
+                            </div>
+                            <div class="dimension-item" draggable="true" data-dimension="geografia" data-level="farm">
+                                <i class="fas fa-home"></i> Finca
+                            </div>
+                            <div class="dimension-item" draggable="true" data-dimension="producto" data-level="variety">
+                                <i class="fas fa-seedling"></i> Variedad
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Medidas -->
+                    <div class="mb-4">
+                        <h5><i class="fas fa-chart-bar"></i> Medidas</h5>
+                        <div class="measure-box" id="measures-box">
+                            <div class="empty-state">
+                                <i class="fas fa-chart-bar"></i>
+                                <p>Arrastra medidas aquí</p>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <div class="measure-item" draggable="true" data-measure="toneladas">
+                                <i class="fas fa-weight"></i> Toneladas
+                            </div>
+                            <div class="measure-item" draggable="true" data-measure="tch">
+                                <i class="fas fa-chart-line"></i> TCH
+                            </div>
+                            <div class="measure-item" draggable="true" data-measure="brix">
+                                <i class="fas fa-percentage"></i> Brix
+                            </div>
+                            <div class="measure-item" draggable="true" data-measure="sacarosa">
+                                <i class="fas fa-cube"></i> Sacarosa
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Funciones de Agregación -->
+                    <div class="mb-4">
+                        <h5><i class="fas fa-calculator"></i> Agregaciones</h5>
+                        <div class="aggregation-panel">
+                            <div class="aggregation-item selected" data-aggregation="sum">Suma</div>
+                            <div class="aggregation-item" data-aggregation="avg">Promedio</div>
+                            <div class="aggregation-item" data-aggregation="max">Máximo</div>
+                            <div class="aggregation-item" data-aggregation="min">Mínimo</div>
+                            <div class="aggregation-item" data-aggregation="count">Conteo</div>
+                            <div class="aggregation-item" data-aggregation="std">Desv. Est.</div>
+                        </div>
+                    </div>
+
+                    <!-- Filtros -->
+                    <div class="mb-4">
+                        <h5><i class="fas fa-filter"></i> Filtros</h5>
+                        <div class="filter-box" id="filters-box">
+                            <div class="empty-state">
+                                <i class="fas fa-filter"></i>
+                                <p>Arrastra filtros aquí</p>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <div class="filter-item" draggable="true" data-filter="año" data-value="2025">
+                                <i class="fas fa-calendar"></i> Año 2025
+                            </div>
+                            <div class="filter-item" draggable="true" data-filter="mes" data-value="8">
+                                <i class="fas fa-calendar-alt"></i> Agosto
+                            </div>
+                            <div class="filter-item" draggable="true" data-filter="zona" data-value="Zona Norte">
+                                <i class="fas fa-map-marker-alt"></i> Zona Norte
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones de Acción -->
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-light btn-lg" id="execute-query">
+                            <i class="fas fa-play"></i> Ejecutar Análisis
+                        </button>
+                        <button class="btn btn-outline-light" id="create-pivot">
+                            <i class="fas fa-table"></i> Crear Tabla Dinámica
+                        </button>
+                        <button class="btn btn-outline-light" id="load-examples">
+                            <i class="fas fa-book"></i> Cargar Ejemplos
+                        </button>
+                        <button class="btn btn-outline-light" id="export-data">
+                            <i class="fas fa-download"></i> Exportar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel de Resultados -->
+            <div class="col-lg-8">
+                <!-- Tabla Dinámica -->
+                <div class="pivot-table-container">
+                    <h4><i class="fas fa-table"></i> Tabla Dinámica</h4>
+                    <div id="pivot-table-content">
+                        <div class="empty-state">
+                            <i class="fas fa-table"></i>
+                            <p>Selecciona dimensiones y medidas para crear la tabla dinámica</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualizaciones -->
+                <div class="chart-container">
+                    <h4><i class="fas fa-chart-line"></i> Visualizaciones</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <canvas id="chart1" width="400" height="300"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <canvas id="chart2" width="400" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Datos Raw -->
+                <div class="olap-card p-4">
+                    <h4><i class="fas fa-database"></i> Datos</h4>
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="data-table">
+                            <thead class="table-dark">
+                                <tr id="table-headers"></tr>
+                            </thead>
+                            <tbody id="table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="mt-3">Procesando análisis OLAP...</p>
+    </div>
+</div>
+
+<!-- Modal de Ejemplos -->
+<div class="modal fade" id="examplesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ejemplos de Análisis OLAP</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="examples-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let currentData = [];
+    let currentCharts = [];
+    let selectedDimensions = [];
+    let selectedMeasures = [];
+    let selectedFilters = [];
+    let selectedAggregations = ['sum'];
+
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeDragAndDrop();
+        initializeEventListeners();
+        loadExamples();
+    });
+
+    function initializeDragAndDrop() {
+        // Configurar drag and drop para dimensiones
+        document.querySelectorAll('.dimension-item').forEach(item => {
+            item.addEventListener('dragstart', handleDragStart);
+        });
+
+        document.querySelectorAll('.measure-item').forEach(item => {
+            item.addEventListener('dragstart', handleDragStart);
+        });
+
+        document.querySelectorAll('.filter-item').forEach(item => {
+            item.addEventListener('dragstart', handleDragStart);
+        });
+
+        // Configurar drop zones
+        document.getElementById('dimensions-box').addEventListener('dragover', handleDragOver);
+        document.getElementById('dimensions-box').addEventListener('drop', handleDrop);
+
+        document.getElementById('measures-box').addEventListener('dragover', handleDragOver);
+        document.getElementById('measures-box').addEventListener('drop', handleDrop);
+
+        document.getElementById('filters-box').addEventListener('dragover', handleDragOver);
+        document.getElementById('filters-box').addEventListener('drop', handleDrop);
+    }
+
+    function initializeEventListeners() {
+        // Operaciones OLAP
+        document.querySelectorAll('.operation-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.operation-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Funciones de agregación
+        document.querySelectorAll('.aggregation-item').forEach(item => {
+            item.addEventListener('click', function() {
+                this.classList.toggle('selected');
+                updateSelectedAggregations();
+            });
+        });
+
+        // Botones de acción
+        document.getElementById('execute-query').addEventListener('click', executeOLAPQuery);
+        document.getElementById('create-pivot').addEventListener('click', createPivotTable);
+        document.getElementById('load-examples').addEventListener('click', () => {
+            new bootstrap.Modal(document.getElementById('examplesModal')).show();
+        });
+        document.getElementById('export-data').addEventListener('click', exportData);
+    }
+
+    function handleDragStart(e) {
+        e.dataTransfer.setData('text/plain', JSON.stringify({
+            type: e.target.dataset.dimension ? 'dimension' : 
+                  e.target.dataset.measure ? 'measure' : 'filter',
+            data: e.target.dataset
+        }));
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add('drag-over');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        const targetBox = e.currentTarget;
+        
+        if (data.type === 'dimension' && targetBox.id === 'dimensions-box') {
+            addDimension(data.data);
+        } else if (data.type === 'measure' && targetBox.id === 'measures-box') {
+            addMeasure(data.data);
+        } else if (data.type === 'filter' && targetBox.id === 'filters-box') {
+            addFilter(data.data);
+        }
+    }
+
+    function addDimension(dimensionData) {
+        if (!selectedDimensions.find(d => d.dimension === dimensionData.dimension && d.level === dimensionData.level)) {
+            selectedDimensions.push(dimensionData);
+            updateDimensionsBox();
+        }
+    }
+
+    function addMeasure(measureData) {
+        if (!selectedMeasures.find(m => m.measure === measureData.measure)) {
+            selectedMeasures.push(measureData);
+            updateMeasuresBox();
+        }
+    }
+
+    function addFilter(filterData) {
+        if (!selectedFilters.find(f => f.filter === filterData.filter && f.value === filterData.value)) {
+            selectedFilters.push(filterData);
+            updateFiltersBox();
+        }
+    }
+
+    function updateDimensionsBox() {
+        const box = document.getElementById('dimensions-box');
+        if (selectedDimensions.length === 0) {
+            box.innerHTML = '<div class="empty-state"><i class="fas fa-layer-group"></i><p>Arrastra dimensiones aquí</p></div>';
+        } else {
+            box.innerHTML = selectedDimensions.map(dim => 
+                `<div class="dimension-item" onclick="removeDimension('${dim.dimension}', '${dim.level}')">
+                    <i class="fas fa-${getDimensionIcon(dim.dimension)}"></i> 
+                    ${getDimensionLabel(dim.dimension)} (${getLevelLabel(dim.level)})
+                    <i class="fas fa-times ms-2"></i>
+                </div>`
+            ).join('');
+        }
+    }
+
+    function updateMeasuresBox() {
+        const box = document.getElementById('measures-box');
+        if (selectedMeasures.length === 0) {
+            box.innerHTML = '<div class="empty-state"><i class="fas fa-chart-bar"></i><p>Arrastra medidas aquí</p></div>';
+        } else {
+            box.innerHTML = selectedMeasures.map(meas => 
+                `<div class="measure-item" onclick="removeMeasure('${meas.measure}')">
+                    <i class="fas fa-${getMeasureIcon(meas.measure)}"></i> 
+                    ${getMeasureLabel(meas.measure)}
+                    <i class="fas fa-times ms-2"></i>
+                </div>`
+            ).join('');
+        }
+    }
+
+    function updateFiltersBox() {
+        const box = document.getElementById('filters-box');
+        if (selectedFilters.length === 0) {
+            box.innerHTML = '<div class="empty-state"><i class="fas fa-filter"></i><p>Arrastra filtros aquí</p></div>';
+        } else {
+            box.innerHTML = selectedFilters.map(filter => 
+                `<div class="filter-item" onclick="removeFilter('${filter.filter}', '${filter.value}')">
+                    <i class="fas fa-${getFilterIcon(filter.filter)}"></i> 
+                    ${getFilterLabel(filter.filter)}: ${filter.value}
+                    <i class="fas fa-times ms-2"></i>
+                </div>`
+            ).join('');
+        }
+    }
+
+    function updateSelectedAggregations() {
+        selectedAggregations = Array.from(document.querySelectorAll('.aggregation-item.selected'))
+            .map(item => item.dataset.aggregation);
+    }
+
+    function removeDimension(dimension, level) {
+        selectedDimensions = selectedDimensions.filter(d => !(d.dimension === dimension && d.level === level));
+        updateDimensionsBox();
+    }
+
+    function removeMeasure(measure) {
+        selectedMeasures = selectedMeasures.filter(m => m.measure !== measure);
+        updateMeasuresBox();
+    }
+
+    function removeFilter(filter, value) {
+        selectedFilters = selectedFilters.filter(f => !(f.filter === filter && f.value === value));
+        updateFiltersBox();
+    }
+
+    async function executeOLAPQuery() {
+        if (selectedMeasures.length === 0) {
+            alert('Selecciona al menos una medida');
+            return;
+        }
+
+        showLoading(true);
+
+        try {
+            const operation = document.querySelector('.operation-btn.active').dataset.operation;
+            
+            const query = {
+                operation: operation,
+                measures: selectedMeasures.map(m => m.measure),
+                dimensions: selectedDimensions.map(d => d.dimension),
+                dimension_levels: selectedDimensions.reduce((acc, d) => {
+                    acc[d.dimension] = d.level;
+                    return acc;
+                }, {}),
+                filters: selectedFilters.reduce((acc, f) => {
+                    acc[f.filter] = f.value;
+                    return acc;
+                }, {}),
+                aggregation_functions: selectedAggregations,
+                limit: 1000
+            };
+
+            const response = await fetch('/api/olap/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(query)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                displayResults(result.data);
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {
+            alert('Error de conexión: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    function displayResults(data) {
+        currentData = data.records;
+        
+        // Actualizar estadísticas
+        document.getElementById('total-records').textContent = data.record_count;
+        document.getElementById('execution-time').textContent = data.execution_time.toFixed(3) + 's';
+        document.getElementById('dimensions-count').textContent = selectedDimensions.length;
+        document.getElementById('measures-count').textContent = selectedMeasures.length;
+
+        // Actualizar tabla de datos
+        updateDataTable(data.records);
+
+        // Actualizar visualizaciones
+        updateCharts(data.records);
+    }
+
+    function updateDataTable(records) {
+        const headers = document.getElementById('table-headers');
+        const body = document.getElementById('table-body');
+
+        if (records.length === 0) {
+            headers.innerHTML = '<th>No hay datos</th>';
+            body.innerHTML = '<tr><td colspan="100%">No se encontraron registros</td></tr>';
+            return;
+        }
+
+        const columns = Object.keys(records[0]);
+        headers.innerHTML = columns.map(col => `<th>${col.replace(/_/g, ' ').toUpperCase()}</th>`).join('');
+        body.innerHTML = records.map(record => 
+            `<tr>${columns.map(col => `<td>${record[col]}</td>`).join('')}</tr>`
+        ).join('');
+    }
+
+    function updateCharts(records) {
+        // Destruir gráficos existentes
+        currentCharts.forEach(chart => chart.destroy());
+        currentCharts = [];
+
+        if (records.length === 0) return;
+
+        // Crear gráfico de barras
+        const ctx1 = document.getElementById('chart1').getContext('2d');
+        const chart1 = createBarChart(ctx1, records);
+        currentCharts.push(chart1);
+
+        // Crear gráfico de líneas
+        const ctx2 = document.getElementById('chart2').getContext('2d');
+        const chart2 = createLineChart(ctx2, records);
+        currentCharts.push(chart2);
+    }
+
+    function createBarChart(ctx, records) {
+        const columns = Object.keys(records[0]);
+        const dimensionCols = columns.filter(col => 
+            col.includes('_year') || col.includes('_month') || col.includes('_zone') || 
+            col.includes('_farm') || col.includes('_variety')
+        );
+        const measureCols = columns.filter(col => 
+            col.includes('_sum') || col.includes('_avg') || col.includes('_max') || col.includes('_min')
+        );
+
+        const labels = records.map(record => {
+            if (dimensionCols.length > 0) {
+                return record[dimensionCols[0]] || 'N/A';
+            }
+            return 'Registro ' + (records.indexOf(record) + 1);
+        });
+
+        const datasets = measureCols.slice(0, 3).map((col, index) => ({
+            label: col.replace(/_/g, ' ').toUpperCase(),
+            data: records.map(record => parseFloat(record[col]) || 0),
+            backgroundColor: `hsla(${index * 120}, 70%, 50%, 0.7)`,
+            borderColor: `hsl(${index * 120}, 70%, 40%)`,
+            borderWidth: 1
+        }));
+
+        return new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Análisis por Dimensiones'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    function createLineChart(ctx, records) {
+        const columns = Object.keys(records[0]);
+        const dimensionCols = columns.filter(col => 
+            col.includes('_year') || col.includes('_month') || col.includes('_zone') || 
+            col.includes('_farm') || col.includes('_variety')
+        );
+        const measureCols = columns.filter(col => 
+            col.includes('_sum') || col.includes('_avg') || col.includes('_max') || col.includes('_min')
+        );
+
+        const labels = records.map(record => {
+            if (dimensionCols.length > 0) {
+                return record[dimensionCols[0]] || 'N/A';
+            }
+            return 'Registro ' + (records.indexOf(record) + 1);
+        });
+
+        const datasets = measureCols.slice(0, 2).map((col, index) => ({
+            label: col.replace(/_/g, ' ').toUpperCase(),
+            data: records.map(record => parseFloat(record[col]) || 0),
+            borderColor: `hsl(${index * 180}, 70%, 50%)`,
+            backgroundColor: `hsla(${index * 180}, 70%, 50%, 0.1)`,
+            fill: false,
+            tension: 0.1
+        }));
+
+        return new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Tendencia de Medidas'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    async function createPivotTable() {
+        if (currentData.length === 0) {
+            alert('Ejecuta primero una consulta para crear la tabla dinámica');
+            return;
+        }
+
+        if (selectedDimensions.length < 2) {
+            alert('Se necesitan al menos 2 dimensiones para crear una tabla dinámica');
+            return;
+        }
+
+        try {
+            const pivotData = {
+                data: currentData,
+                row_dimension: selectedDimensions[0].dimension + '_' + selectedDimensions[0].level,
+                col_dimension: selectedDimensions[1].dimension + '_' + selectedDimensions[1].level,
+                measure: selectedMeasures[0].measure + '_' + selectedAggregations[0]
+            };
+
+            const response = await fetch('/api/olap/pivot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(pivotData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                displayPivotTable(result.data);
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+
+    function displayPivotTable(pivotData) {
+        const container = document.getElementById('pivot-table-content');
+        
+        if (pivotData.error) {
+            container.innerHTML = `<div class="alert alert-danger">${pivotData.error}</div>`;
+            return;
+        }
+
+        let html = '<table class="pivot-table">';
+        
+        // Headers
+        html += '<thead><tr><th></th>';
+        pivotData.columns.forEach(col => {
+            html += `<th>${col}</th>`;
+        });
+        html += '</tr></thead>';
+        
+        // Body
+        html += '<tbody>';
+        pivotData.rows.forEach((row, rowIndex) => {
+            html += `<tr><th>${row}</th>`;
+            pivotData.data[rowIndex].forEach(value => {
+                html += `<td>${value.toFixed(2)}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        
+        container.innerHTML = html;
+    }
+
+    async function loadExamples() {
+        try {
+            const response = await fetch('/api/olap/examples');
+            const result = await response.json();
+            
+            if (result.success) {
+                displayExamples(result.data.examples);
+            }
+        } catch (error) {
+            console.error('Error cargando ejemplos:', error);
+        }
+    }
+
+    function displayExamples(examples) {
+        const container = document.getElementById('examples-list');
+        container.innerHTML = examples.map(example => `
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="card-title">${example.name}</h6>
+                    <p class="card-text">${example.description}</p>
+                    <button class="btn btn-sm btn-primary" onclick="loadExample(${JSON.stringify(example).replace(/"/g, '&quot;')})">
+                        <i class="fas fa-play"></i> Cargar
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function loadExample(example) {
+        // Limpiar selecciones
+        selectedDimensions = [];
+        selectedMeasures = [];
+        selectedFilters = [];
+
+        // Cargar dimensiones
+        example.dimensions.forEach(dim => {
+            const level = example.dimension_levels[dim];
+            selectedDimensions.push({ dimension: dim, level: level });
+        });
+
+        // Cargar medidas
+        example.measures.forEach(measure => {
+            selectedMeasures.push({ measure: measure });
+        });
+
+        // Cargar filtros
+        Object.entries(example.filters).forEach(([key, value]) => {
+            selectedFilters.push({ filter: key, value: value });
+        });
+
+        // Cargar operación
+        const operationBtn = document.querySelector(`[data-operation="${example.operation}"]`);
+        if (operationBtn) {
+            document.querySelectorAll('.operation-btn').forEach(b => b.classList.remove('active'));
+            operationBtn.classList.add('active');
+        }
+
+        // Actualizar UI
+        updateDimensionsBox();
+        updateMeasuresBox();
+        updateFiltersBox();
+
+        // Cerrar modal
+        bootstrap.Modal.getInstance(document.getElementById('examplesModal')).hide();
+    }
+
+    function exportData() {
+        if (currentData.length === 0) {
+            alert('No hay datos para exportar');
+            return;
+        }
+
+        const csv = convertToCSV(currentData);
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'olap_analysis.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+
+    function convertToCSV(data) {
+        if (data.length === 0) return '';
+        
+        const headers = Object.keys(data[0]);
+        const csvHeaders = headers.join(',');
+        const csvRows = data.map(row => 
+            headers.map(header => `"${row[header] || ''}"`).join(',')
+        );
+        
+        return [csvHeaders, ...csvRows].join('\n');
+    }
+
+    function showLoading(show) {
+        document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+    }
+
+    // Funciones auxiliares para iconos y etiquetas
+    function getDimensionIcon(dimension) {
+        const icons = {
+            'tiempo': 'calendar',
+            'geografia': 'map-marker-alt',
+            'producto': 'seedling'
+        };
+        return icons[dimension] || 'layer-group';
+    }
+
+    function getMeasureIcon(measure) {
+        const icons = {
+            'toneladas': 'weight',
+            'tch': 'chart-line',
+            'brix': 'percentage',
+            'sacarosa': 'cube'
+        };
+        return icons[measure] || 'chart-bar';
+    }
+
+    function getFilterIcon(filter) {
+        const icons = {
+            'año': 'calendar',
+            'mes': 'calendar-alt',
+            'zona': 'map-marker-alt',
+            'finca': 'home',
+            'variedad': 'seedling'
+        };
+        return icons[filter] || 'filter';
+    }
+
+    function getDimensionLabel(dimension) {
+        const labels = {
+            'tiempo': 'Tiempo',
+            'geografia': 'Geografía',
+            'producto': 'Producto'
+        };
+        return labels[dimension] || dimension;
+    }
+
+    function getLevelLabel(level) {
+        const labels = {
+            'year': 'Año',
+            'month': 'Mes',
+            'zone': 'Zona',
+            'farm': 'Finca',
+            'variety': 'Variedad'
+        };
+        return labels[level] || level;
+    }
+
+    function getMeasureLabel(measure) {
+        const labels = {
+            'toneladas': 'Toneladas',
+            'tch': 'TCH',
+            'brix': 'Brix',
+            'sacarosa': 'Sacarosa'
+        };
+        return labels[measure] || measure;
+    }
+
+    function getFilterLabel(filter) {
+        const labels = {
+            'año': 'Año',
+            'mes': 'Mes',
+            'zona': 'Zona',
+            'finca': 'Finca',
+            'variedad': 'Variedad'
+        };
+        return labels[filter] || filter;
+    }
+</script>
+{% endblock %}
+
