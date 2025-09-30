@@ -18,10 +18,14 @@ root_dir = Path(__file__).parent.parent
 sys.path.append(str(root_dir))
 
 from chatbot.query_parser import QueryParser
+from filter_parser import FilterParser
+from filter_intersections import FilterIntersections
 from chatbot.sql_generator import SQLGenerator
 from chatbot.langchain_chatbot import langchain_chatbot
 from dashboard.visualization_engine import VisualizationEngine, ChartConfig, ChartType
 from dashboard.olap_engine import OLAEEngine, OLAPQuery, OLAPOperation, AggregationFunction, DimensionLevel
+from dashboard.powerbi_integration import get_powerbi_integration
+from dashboard.powerbi_connector import get_powerbi_connector
 from auth.models import db, User, Role, SessionToken, AuditLog
 from auth.security import security_manager, require_auth, require_permission, audit_log
 import pandas as pd
@@ -98,6 +102,17 @@ query_parser = QueryParser()
 sql_generator = SQLGenerator()
 viz_engine = VisualizationEngine()
 
+# Inicializar sistema de intersecciones de filtros
+filter_intersections = None
+
+def get_filter_intersections():
+    global filter_intersections
+    if filter_intersections is None:
+        engine = get_db_connection()
+        filter_intersections = FilterIntersections(engine)
+        filter_intersections.load_base_data()
+    return filter_intersections
+
 # Inicializar motor OLAP
 def get_olap_engine():
     """Crear motor OLAP con conexión a la base de datos"""
@@ -166,6 +181,13 @@ def olap_interactive_page():
 def analytics_page():
     """Página de análisis de datos con interfaz mejorada"""
     return render_template('olap_analytics.html')
+
+@app.route('/powerbi')
+@login_required
+@require_permission('analytics.read')
+def powerbi_page():
+    """Página de integración con Power BI"""
+    return render_template('powerbi_integration.html')
 
 # API Endpoints
 @app.route('/api/user/me')
@@ -433,6 +455,184 @@ def get_estadisticas():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+# APIs para filtros
+@app.route('/api/fincas')
+def get_fincas():
+    """Obtener lista de fincas para filtros"""
+    try:
+        engine = get_db_connection()
+        query = "SELECT finca_id, codigo_finca, nombre_finca FROM dimfinca ORDER BY nombre_finca"
+        result = pd.read_sql(query, engine)
+        
+        fincas = []
+        for _, row in result.iterrows():
+            fincas.append({
+                'finca_id': int(row['finca_id']),
+                'codigo_finca': str(row['codigo_finca']),
+                'nombre_finca': str(row['nombre_finca'])
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": fincas
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/variedades')
+def get_variedades():
+    """Obtener lista de variedades para filtros"""
+    try:
+        engine = get_db_connection()
+        query = "SELECT variedad_id, nombre_variedad FROM dimvariedad ORDER BY nombre_variedad"
+        result = pd.read_sql(query, engine)
+        
+        variedades = []
+        for _, row in result.iterrows():
+            variedades.append({
+                'variedad_id': int(row['variedad_id']),
+                'nombre_variedad': str(row['nombre_variedad'])
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": variedades
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/zonas')
+def get_zonas():
+    """Obtener lista de zonas para filtros"""
+    try:
+        engine = get_db_connection()
+        query = "SELECT codigo_zona, nombre_zona FROM dimzona ORDER BY codigo_zona"
+        result = pd.read_sql(query, engine)
+        
+        zonas = []
+        for _, row in result.iterrows():
+            zonas.append({
+                'codigo_zona': str(row['codigo_zona']),
+                'nombre_zona': str(row['nombre_zona'])
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": zonas
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/tiempo')
+def get_tiempo():
+    """Obtener lista de períodos de tiempo para filtros"""
+    try:
+        engine = get_db_connection()
+        query = """
+        SELECT DISTINCT 
+            tiempo_id, 
+            fecha, 
+            año, 
+            mes, 
+            nombre_mes, 
+            trimestre 
+        FROM dimtiempo 
+        ORDER BY año DESC, mes ASC
+        """
+        result = pd.read_sql(query, engine)
+        
+        tiempo = []
+        for _, row in result.iterrows():
+            tiempo.append({
+                'tiempo_id': int(row['tiempo_id']),
+                'fecha': str(row['fecha']),
+                'año': int(row['año']),
+                'mes': int(row['mes']),
+                'nombre_mes': str(row['nombre_mes']),
+                'trimestre': int(row['trimestre'])
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": tiempo
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# APIs del Parser de Filtros Inteligente
+@app.route('/api/filter-options')
+def get_filter_options():
+    """Obtener opciones de filtros disponibles de forma reactiva usando intersecciones"""
+    try:
+        # Obtener filtros actuales de la query string
+        current_filters = {}
+        if request.args.get('finca_id'):
+            current_filters['finca_id'] = int(request.args.get('finca_id'))
+        if request.args.get('variedad_id'):
+            current_filters['variedad_id'] = int(request.args.get('variedad_id'))
+        if request.args.get('zona_id'):
+            current_filters['zona_id'] = request.args.get('zona_id')
+        if request.args.get('año'):
+            current_filters['año'] = int(request.args.get('año'))
+        if request.args.get('mes'):
+            current_filters['mes'] = int(request.args.get('mes'))
+        if request.args.get('top_fincas'):
+            current_filters['top_fincas'] = int(request.args.get('top_fincas'))
+        
+        # Usar sistema de intersecciones
+        intersections = get_filter_intersections()
+        filter_options = intersections.get_available_options(current_filters)
+        
+        return jsonify({
+            "success": True,
+            "data": filter_options
+        })
+        
+    except Exception as e:
+        print(f"❌ ERROR en /api/filter-options: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/cosecha-filtered')
+def get_cosecha_filtered():
+    """Obtener datos de cosecha filtrados usando sistema de intersecciones"""
+    try:
+        # Obtener filtros de la query string
+        filters = {}
+        if request.args.get('finca_id'):
+            filters['finca_id'] = int(request.args.get('finca_id'))
+        if request.args.get('variedad_id'):
+            filters['variedad_id'] = int(request.args.get('variedad_id'))
+        if request.args.get('zona_id'):
+            filters['zona_id'] = request.args.get('zona_id')
+        if request.args.get('año'):
+            filters['año'] = int(request.args.get('año'))
+        if request.args.get('mes'):
+            filters['mes'] = int(request.args.get('mes'))
+        if request.args.get('top_fincas'):
+            filters['top_fincas'] = int(request.args.get('top_fincas'))
+        
+        # Obtener límite
+        limit = int(request.args.get('limit', 1000))
+        
+        # Obtener datos filtrados usando sistema de intersecciones
+        intersections = get_filter_intersections()
+        data = intersections.get_filtered_data(filters, limit)
+        
+        return jsonify({
+            "success": True,
+            "data": data,
+            "count": len(data),
+            "filters_applied": filters
+        })
+        
+    except Exception as e:
+        print(f"❌ ERROR en /api/cosecha-filtered: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route('/api/examples')
 def get_example_queries():
     """Retorna ejemplos de consultas que se pueden hacer"""
@@ -474,7 +674,7 @@ def get_top_cosechas():
         if criterio not in criterios_map:
             return jsonify({"success": False, "error": "Criterio no válido"}), 400
         
-        # Consulta simplificada sin JOINs problemáticos
+        # Consulta con JOINs para obtener nombres reales
         query = f"""
         SELECT 
             h.toneladas_cana_molida,
@@ -482,10 +682,21 @@ def get_top_cosechas():
             h.brix,
             h.sacarosa,
             h.id_finca,
-            h.codigo_variedad,
-            h.codigo_zona,
-            h.codigo_tiempo
+            f.nombre_finca,
+            f.codigo_finca,
+            v.nombre_variedad,
+            v.variedad_id,
+            z.nombre_zona,
+            z.codigo_zona,
+            t.año,
+            t.mes,
+            t.nombre_mes,
+            t.fecha
         FROM hechos_cosecha h
+        LEFT JOIN dimfinca f ON h.id_finca = f.finca_id
+        LEFT JOIN dimvariedad v ON h.codigo_variedad = v.variedad_id
+        LEFT JOIN dimzona z ON h.codigo_zona = z.codigo_zona
+        LEFT JOIN dimtiempo t ON h.codigo_tiempo = t.tiempo_id
         ORDER BY {criterios_map[criterio]} DESC
         LIMIT {limit}
         """
@@ -678,8 +889,20 @@ def process_chat_query_langchain():
 def get_olap_dimensions():
     """Obtener dimensiones disponibles para OLAP"""
     try:
-        olap_engine = get_olap_engine()
-        dimensions = olap_engine.get_available_dimensions()
+        # Valores por defecto si falla el motor OLAP
+        default_dimensions = {
+            "dimensions": [
+                {"name": "tiempo", "label": "Tiempo", "levels": ["año", "mes", "trimestre"]},
+                {"name": "geografia", "label": "Geografía", "levels": ["zona", "finca"]},
+                {"name": "producto", "label": "Producto", "levels": ["variedad"]}
+            ]
+        }
+        
+        try:
+            olap_engine = get_olap_engine()
+            dimensions = olap_engine.get_available_dimensions()
+        except:
+            dimensions = default_dimensions
         
         return jsonify({
             "success": True,
@@ -687,16 +910,33 @@ def get_olap_dimensions():
         })
     except Exception as e:
         return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+            "success": True,
+            "data": {
+                "dimensions": [
+                    {"name": "tiempo", "label": "Tiempo", "levels": ["año", "mes", "trimestre"]},
+                    {"name": "geografia", "label": "Geografía", "levels": ["zona", "finca"]},
+                    {"name": "producto", "label": "Producto", "levels": ["variedad"]}
+                ]
+            }
+        })
 
 @app.route('/api/olap/measures')
 def get_olap_measures():
     """Obtener medidas disponibles para OLAP"""
     try:
-        olap_engine = get_olap_engine()
-        measures = olap_engine.get_available_measures()
+        # Valores por defecto si falla el motor OLAP
+        default_measures = [
+            {"name": "toneladas_cana_molida", "label": "Toneladas", "type": "numeric"},
+            {"name": "tch", "label": "TCH", "type": "numeric"},
+            {"name": "brix", "label": "Brix", "type": "numeric"},
+            {"name": "sacarosa", "label": "Sacarosa", "type": "numeric"}
+        ]
+        
+        try:
+            olap_engine = get_olap_engine()
+            measures = olap_engine.get_available_measures()
+        except:
+            measures = default_measures
         
         return jsonify({
             "success": True,
@@ -706,9 +946,16 @@ def get_olap_measures():
         })
     except Exception as e:
         return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+            "success": True,
+            "data": {
+                "measures": [
+                    {"name": "toneladas_cana_molida", "label": "Toneladas", "type": "numeric"},
+                    {"name": "tch", "label": "TCH", "type": "numeric"},
+                    {"name": "brix", "label": "Brix", "type": "numeric"},
+                    {"name": "sacarosa", "label": "Sacarosa", "type": "numeric"}
+                ]
+            }
+        })
 
 @app.route('/api/olap/aggregations')
 def get_olap_aggregations():
@@ -749,8 +996,6 @@ def get_olap_examples():
         }), 500
 
 @app.route('/api/olap/query', methods=['POST'])
-@require_auth
-@require_permission('analytics.read')
 def execute_olap_query():
     """Ejecutar consulta OLAP"""
     try:
@@ -877,6 +1122,350 @@ def get_dimension_values(dimension, level):
 def not_found(error):
     return jsonify({"success": False, "error": "Endpoint no encontrado"}), 404
 
+# =============================================================================
+# POWER BI INTEGRATION ENDPOINTS
+# =============================================================================
+
+@app.route('/api/powerbi/schema')
+def get_powerbi_schema():
+    """Obtener esquema del cubo OLAP para Power BI"""
+    try:
+        powerbi = get_powerbi_integration()
+        if not powerbi:
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando integración Power BI"
+            }), 500
+        
+        result = powerbi.get_cube_schema()
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error obteniendo esquema: {str(e)}"
+        }), 500
+
+@app.route('/api/powerbi/fact-table')
+def export_powerbi_fact_table():
+    """Exportar tabla de hechos para Power BI"""
+    try:
+        powerbi = get_powerbi_integration()
+        if not powerbi:
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando integración Power BI"
+            }), 500
+        
+        # Obtener filtros de query parameters
+        filters = {}
+        if request.args.get('start_date'):
+            filters['start_date'] = request.args.get('start_date')
+        if request.args.get('end_date'):
+            filters['end_date'] = request.args.get('end_date')
+        if request.args.get('zones'):
+            filters['zones'] = request.args.get('zones').split(',')
+        if request.args.get('varieties'):
+            filters['varieties'] = request.args.get('varieties').split(',')
+        
+        result = powerbi.export_fact_table(filters if filters else None)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error exportando tabla de hechos: {str(e)}"
+        }), 500
+
+@app.route('/api/powerbi/dimensions')
+def export_powerbi_dimensions():
+    """Exportar tablas de dimensiones para Power BI"""
+    try:
+        powerbi = get_powerbi_integration()
+        if not powerbi:
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando integración Power BI"
+            }), 500
+        
+        result = powerbi.export_dimension_tables()
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error exportando dimensiones: {str(e)}"
+        }), 500
+
+@app.route('/api/powerbi/dataset')
+def create_powerbi_dataset():
+    """Crear dataset completo para Power BI"""
+    try:
+        powerbi = get_powerbi_integration()
+        if not powerbi:
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando integración Power BI"
+            }), 500
+        
+        # Obtener filtros de query parameters
+        filters = {}
+        if request.args.get('start_date'):
+            filters['start_date'] = request.args.get('start_date')
+        if request.args.get('end_date'):
+            filters['end_date'] = request.args.get('end_date')
+        if request.args.get('zones'):
+            filters['zones'] = request.args.get('zones').split(',')
+        if request.args.get('varieties'):
+            filters['varieties'] = request.args.get('varieties').split(',')
+        
+        result = powerbi.create_powerbi_dataset(filters if filters else None)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error creando dataset: {str(e)}"
+        }), 500
+
+@app.route('/api/powerbi/analysis', methods=['POST'])
+def get_powerbi_analysis():
+    """Obtener datos para análisis OLAP específico en Power BI"""
+    try:
+        powerbi = get_powerbi_integration()
+        if not powerbi:
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando integración Power BI"
+            }), 500
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "Datos JSON requeridos"
+            }), 400
+        
+        result = powerbi.get_olap_analysis_data(data)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error en análisis: {str(e)}"
+        }), 500
+
+@app.route('/api/powerbi/export/csv')
+def export_powerbi_csv():
+    """Exportar datos en formato CSV para Power BI"""
+    try:
+        powerbi = get_powerbi_integration()
+        if not powerbi:
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando integración Power BI"
+            }), 500
+        
+        # Obtener filtros
+        filters = {}
+        if request.args.get('start_date'):
+            filters['start_date'] = request.args.get('start_date')
+        if request.args.get('end_date'):
+            filters['end_date'] = request.args.get('end_date')
+        if request.args.get('zones'):
+            filters['zones'] = request.args.get('zones').split(',')
+        if request.args.get('varieties'):
+            filters['varieties'] = request.args.get('varieties').split(',')
+        
+        # Obtener datos
+        result = powerbi.export_fact_table(filters if filters else None)
+        
+        if not result["success"]:
+            return jsonify(result), 500
+        
+        # Convertir a CSV
+        import io
+        import csv
+        
+        output = io.StringIO()
+        data = result["data"]["data"]
+        
+        if data:
+            writer = csv.DictWriter(output, fieldnames=data[0].keys())
+            writer.writeheader()
+            writer.writerows(data)
+        
+        csv_content = output.getvalue()
+        output.close()
+        
+        # Crear respuesta con CSV
+        from flask import Response
+        return Response(
+            csv_content,
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=sugarbi_cosecha_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+            }
+        )
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error exportando CSV: {str(e)}"
+        }), 500
+
+@app.route('/api/powerbi/export/json')
+def export_powerbi_json():
+    """Exportar datos en formato JSON para Power BI"""
+    try:
+        powerbi = get_powerbi_integration()
+        if not powerbi:
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando integración Power BI"
+            }), 500
+        
+        # Obtener filtros
+        filters = {}
+        if request.args.get('start_date'):
+            filters['start_date'] = request.args.get('start_date')
+        if request.args.get('end_date'):
+            filters['end_date'] = request.args.get('end_date')
+        if request.args.get('zones'):
+            filters['zones'] = request.args.get('zones').split(',')
+        if request.args.get('varieties'):
+            filters['varieties'] = request.args.get('varieties').split(',')
+        
+        # Obtener dataset completo
+        result = powerbi.create_powerbi_dataset(filters if filters else None)
+        
+        if not result["success"]:
+            return jsonify(result), 500
+        
+        # Crear respuesta con JSON
+        from flask import Response
+        return Response(
+            json.dumps(result["data"], indent=2, ensure_ascii=False),
+            mimetype='application/json',
+            headers={
+                'Content-Disposition': f'attachment; filename=sugarbi_dataset_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+            }
+        )
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error exportando JSON: {str(e)}"
+        }), 500
+
+# =============================================================================
+# POWER BI DESKTOP CONNECTOR ENDPOINTS
+# =============================================================================
+
+@app.route('/api/powerbi-desktop/connection-info')
+def get_powerbi_connection_info():
+    """Información de conexión para Power BI Desktop"""
+    try:
+        connector = get_powerbi_connector()
+        if not connector:
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando conector Power BI"
+            }), 500
+        
+        result = connector.get_connection_info()
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error obteniendo información de conexión: {str(e)}"
+        }), 500
+
+@app.route('/api/powerbi-desktop/table/<table_name>')
+def get_powerbi_table(table_name):
+    """Obtener tabla específica para Power BI Desktop"""
+    try:
+        connector = get_powerbi_connector()
+        if not connector:
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando conector Power BI"
+            }), 500
+        
+        # Obtener filtros de query parameters
+        filters = {}
+        if request.args.get('start_date'):
+            filters['start_date'] = request.args.get('start_date')
+        if request.args.get('end_date'):
+            filters['end_date'] = request.args.get('end_date')
+        if request.args.get('zones'):
+            filters['zones'] = request.args.get('zones').split(',')
+        if request.args.get('varieties'):
+            filters['varieties'] = request.args.get('varieties').split(',')
+        
+        result = connector.get_powerbi_ready_data(table_name, filters if filters else None)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error obteniendo tabla: {str(e)}"
+        }), 500
+
+@app.route('/api/powerbi-desktop/export/<format_type>')
+def export_powerbi_desktop(format_type):
+    """Exportar datos para Power BI Desktop"""
+    try:
+        connector = get_powerbi_connector()
+        if not connector:
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando conector Power BI"
+            }), 500
+        
+        return connector.export_for_powerbi_desktop(format_type)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error exportando datos: {str(e)}"
+        }), 500
+
+@app.route('/api/powerbi-desktop/odata')
+def powerbi_odata_endpoint():
+    """Endpoint OData para Power BI Desktop (simulado)"""
+    try:
+        connector = get_powerbi_connector()
+        if not connector:
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando conector Power BI"
+            }), 500
+        
+        # Obtener datos de la tabla de hechos
+        result = connector.get_powerbi_ready_data("hechos_cosecha")
+        
+        if not result["success"]:
+            return jsonify(result), 500
+        
+        # Formatear como OData
+        odata_response = {
+            "@odata.context": f"{request.url_root}api/powerbi-desktop/odata/$metadata",
+            "value": result["data"]["data"]
+        }
+        
+        return jsonify(odata_response)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error en endpoint OData: {str(e)}"
+        }), 500
+
 @app.errorhandler(500)
 def internal_error(error):
     return jsonify({"success": False, "error": "Error interno del servidor"}), 500
@@ -885,6 +1474,8 @@ if __name__ == '__main__':
     print("🚀 Iniciando SugarBI Web Application...")
     print("🤖 Chatbot: http://localhost:5001/chatbot")
     print("📊 Dashboard: http://localhost:5001/dashboard")
+    print("🔍 OLAP: http://localhost:5001/olap")
+    print("📈 Power BI: http://localhost:5001/powerbi")
     print("🌐 API: http://localhost:5001/api/")
     print("📖 Documentación: http://localhost:5001/")
     

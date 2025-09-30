@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integración Power BI - SugarBI</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+            color: #2c5530 !important;
+        }
+        
+        .powerbi-card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .powerbi-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .export-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .api-endpoint {
+            background: #f8f9fa;
+            border-left: 4px solid #2c5530;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 5px;
+        }
+        
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+        
+        .btn-powerbi {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-powerbi:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(240, 147, 251, 0.4);
+            color: white;
+        }
+        
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #2c5530 0%, #4a7c59 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            margin: 0 auto 1rem;
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: #2c5530;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+        
+        .loading {
+            display: none;
+        }
+        
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-seedling"></i> SugarBI
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="fas fa-home"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard">
+                            <i class="fas fa-chart-bar"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/olap">
+                            <i class="fas fa-cubes"></i> OLAP
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/powerbi">
+                            <i class="fas fa-chart-line"></i> Power BI
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="export-section text-center">
+                    <h1><i class="fas fa-chart-line"></i> Integración con Power BI</h1>
+                    <p class="lead">Exporta tus datos de SugarBI directamente a Power BI para análisis avanzados</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="row mb-5">
+            <div class="col-md-3 mb-4">
+                <div class="card powerbi-card h-100 text-center">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="fas fa-download"></i>
+                        </div>
+                        <h5 class="card-title">Exportación de Datos</h5>
+                        <p class="card-text">Exporta tablas de hechos y dimensiones en formatos compatibles con Power BI</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card powerbi-card h-100 text-center">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="fas fa-cube"></i>
+                        </div>
+                        <h5 class="card-title">Cubo OLAP</h5>
+                        <p class="card-text">Accede al esquema completo del cubo multidimensional para análisis avanzados</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card powerbi-card h-100 text-center">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="fas fa-link"></i>
+                        </div>
+                        <h5 class="card-title">Relaciones</h5>
+                        <p class="card-text">Obtén las relaciones predefinidas entre tablas para un modelo de datos perfecto</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card powerbi-card h-100 text-center">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="fas fa-calculator"></i>
+                        </div>
+                        <h5 class="card-title">Medidas Calculadas</h5>
+                        <p class="card-text">Medidas DAX predefinidas para análisis de rendimiento y producción</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Options -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card powerbi-card">
+                    <div class="card-header bg-primary text-white">
+                        <h4><i class="fas fa-download"></i> Opciones de Exportación</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Filtros de Datos</h5>
+                                <div class="mb-3">
+                                    <label for="startDate" class="form-label">Fecha Inicio</label>
+                                    <input type="date" class="form-control" id="startDate">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="endDate" class="form-label">Fecha Fin</label>
+                                    <input type="date" class="form-control" id="endDate">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="zones" class="form-label">Zonas (separadas por coma)</label>
+                                    <input type="text" class="form-control" id="zones" placeholder="ZONA1,ZONA2,ZONA3">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="varieties" class="form-label">Variedades (separadas por coma)</label>
+                                    <input type="text" class="form-control" id="varieties" placeholder="VAR1,VAR2,VAR3">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Formatos de Exportación</h5>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-powerbi" onclick="exportData('csv')">
+                                        <i class="fas fa-file-csv"></i> Exportar CSV
+                                    </button>
+                                    <button class="btn btn-powerbi" onclick="exportData('json')">
+                                        <i class="fas fa-file-code"></i> Exportar JSON
+                                    </button>
+                                    <button class="btn btn-powerbi" onclick="getSchema()">
+                                        <i class="fas fa-cube"></i> Obtener Esquema
+                                    </button>
+                                    <button class="btn btn-powerbi" onclick="getDataset()">
+                                        <i class="fas fa-database"></i> Dataset Completo
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Documentation -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card powerbi-card">
+                    <div class="card-header bg-success text-white">
+                        <h4><i class="fas fa-code"></i> Documentación de API</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Endpoints Disponibles</h5>
+                                
+                                <div class="api-endpoint">
+                                    <strong>GET /api/powerbi/schema</strong>
+                                    <p class="mb-0">Obtener esquema del cubo OLAP</p>
+                                </div>
+                                
+                                <div class="api-endpoint">
+                                    <strong>GET /api/powerbi/fact-table</strong>
+                                    <p class="mb-0">Exportar tabla de hechos</p>
+                                </div>
+                                
+                                <div class="api-endpoint">
+                                    <strong>GET /api/powerbi/dimensions</strong>
+                                    <p class="mb-0">Exportar tablas de dimensiones</p>
+                                </div>
+                                
+                                <div class="api-endpoint">
+                                    <strong>GET /api/powerbi/dataset</strong>
+                                    <p class="mb-0">Crear dataset completo</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Ejemplo de Uso</h5>
+                                <div class="code-block">
+<pre>// Obtener esquema del cubo
+fetch('/api/powerbi/schema')
+  .then(response => response.json())
+  .then(data => console.log(data));
+
+// Exportar datos con filtros
+const params = new URLSearchParams({
+  start_date: '2024-01-01',
+  end_date: '2024-12-31',
+  zones: 'ZONA1,ZONA2'
+});
+
+fetch(`/api/powerbi/fact-table?${params}`)
+  .then(response => response.json())
+  .then(data => console.log(data));</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Integration Steps -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card powerbi-card">
+                    <div class="card-header bg-info text-white">
+                        <h4><i class="fas fa-list-ol"></i> Pasos para Integración</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-flex mb-3">
+                                    <div class="step-number">1</div>
+                                    <div>
+                                        <h6>Obtener Esquema</h6>
+                                        <p class="mb-0">Descarga el esquema del cubo OLAP para entender la estructura de datos</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex mb-3">
+                                    <div class="step-number">2</div>
+                                    <div>
+                                        <h6>Exportar Datos</h6>
+                                        <p class="mb-0">Exporta las tablas de hechos y dimensiones en el formato deseado</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex mb-3">
+                                    <div class="step-number">3</div>
+                                    <div>
+                                        <h6>Configurar Relaciones</h6>
+                                        <p class="mb-0">Usa las relaciones predefinidas para crear el modelo de datos en Power BI</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex mb-3">
+                                    <div class="step-number">4</div>
+                                    <div>
+                                        <h6>Agregar Medidas</h6>
+                                        <p class="mb-0">Implementa las medidas DAX calculadas para análisis avanzados</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex mb-3">
+                                    <div class="step-number">5</div>
+                                    <div>
+                                        <h6>Crear Visualizaciones</h6>
+                                        <p class="mb-0">Desarrolla dashboards y reportes usando los datos de SugarBI</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex mb-3">
+                                    <div class="step-number">6</div>
+                                    <div>
+                                        <h6>Automatizar Actualizaciones</h6>
+                                        <p class="mb-0">Configura actualizaciones automáticas para mantener los datos actualizados</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card powerbi-card">
+                    <div class="card-header bg-warning text-dark">
+                        <h4><i class="fas fa-chart-bar"></i> Resultados</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="results" class="loading">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2">Procesando solicitud...</p>
+                            </div>
+                        </div>
+                        <div id="resultsContent" style="display: none;">
+                            <pre id="jsonResults" class="code-block"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Función para exportar datos
+        function exportData(format) {
+            showLoading();
+            
+            const params = new URLSearchParams();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const zones = document.getElementById('zones').value;
+            const varieties = document.getElementById('varieties').value;
+            
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+            if (zones) params.append('zones', zones);
+            if (varieties) params.append('varieties', varieties);
+            
+            const url = `/api/powerbi/export/${format}?${params}`;
+            
+            if (format === 'csv' || format === 'json') {
+                // Descargar archivo
+                window.open(url, '_blank');
+                hideLoading();
+            } else {
+                // Mostrar datos en pantalla
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        showResults(data);
+                    })
+                    .catch(error => {
+                        showError('Error al exportar datos: ' + error.message);
+                    });
+            }
+        }
+        
+        // Función para obtener esquema
+        function getSchema() {
+            showLoading();
+            
+            fetch('/api/powerbi/schema')
+                .then(response => response.json())
+                .then(data => {
+                    showResults(data);
+                })
+                .catch(error => {
+                    showError('Error al obtener esquema: ' + error.message);
+                });
+        }
+        
+        // Función para obtener dataset completo
+        function getDataset() {
+            showLoading();
+            
+            const params = new URLSearchParams();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const zones = document.getElementById('zones').value;
+            const varieties = document.getElementById('varieties').value;
+            
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+            if (zones) params.append('zones', zones);
+            if (varieties) params.append('varieties', varieties);
+            
+            fetch(`/api/powerbi/dataset?${params}`)
+                .then(response => response.json())
+                .then(data => {
+                    showResults(data);
+                })
+                .catch(error => {
+                    showError('Error al obtener dataset: ' + error.message);
+                });
+        }
+        
+        // Función para mostrar loading
+        function showLoading() {
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('resultsContent').style.display = 'none';
+        }
+        
+        // Función para ocultar loading
+        function hideLoading() {
+            document.getElementById('results').style.display = 'none';
+        }
+        
+        // Función para mostrar resultados
+        function showResults(data) {
+            hideLoading();
+            document.getElementById('jsonResults').textContent = JSON.stringify(data, null, 2);
+            document.getElementById('resultsContent').style.display = 'block';
+        }
+        
+        // Función para mostrar errores
+        function showError(message) {
+            hideLoading();
+            document.getElementById('jsonResults').textContent = JSON.stringify({
+                success: false,
+                error: message
+            }, null, 2);
+            document.getElementById('resultsContent').style.display = 'block';
+        }
+        
+        // Establecer fechas por defecto
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const lastYear = new Date(today.getFullYear() - 1, 0, 1);
+            
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            document.getElementById('startDate').value = lastYear.toISOString().split('T')[0];
+        });
+    </script>
+</body>
+</html>

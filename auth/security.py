@@ -30,11 +30,11 @@ class SecurityManager:
         """Inicializar la aplicación con medidas de seguridad"""
         self.app = app
         
-        # Configurar rate limiting
+        # Configurar rate limiting (aumentado para desarrollo)
         self.limiter = Limiter(
             app=app,
             key_func=get_remote_address,
-            default_limits=["1000 per hour", "100 per minute"]
+            default_limits=["10000 per hour", "1000 per minute"]
         )
         
         # Configurar headers de seguridad
