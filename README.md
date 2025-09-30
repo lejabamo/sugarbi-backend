@@ -1,291 +1,230 @@
-# 🍃 SugarBI - Sistema de Business Intelligence para Cosecha de Caña
+# SugarBI Backend
 
-[![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
-[![Flask](https://img.shields.io/badge/Flask-3.1.2-green.svg)](https://flask.palletsprojects.com/)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-orange.svg)](https://mysql.com)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+Sistema de Business Intelligence para análisis de datos de cosecha de caña de azúcar.
 
-## 🎯 Descripción
+## 🚀 Características
 
-**SugarBI** es un sistema de Business Intelligence especializado en el análisis de datos de cosecha de caña de azúcar. Combina procesamiento de lenguaje natural, visualizaciones dinámicas y un data mart optimizado para proporcionar insights inteligentes sobre la producción agrícola.
-
-## ✨ Características Principales
-
-- 🤖 **Chatbot Inteligente**: Consultas en lenguaje natural
-- 📊 **Visualizaciones Dinámicas**: Gráficos interactivos automáticos
-- 🗄️ **Data Mart Dimensional**: Modelo estrella optimizado
-- 🌐 **Dashboard Integrado**: Interfaz unificada (25% chatbot - 75% visualizaciones)
-- 📱 **Responsive Design**: Compatible con dispositivos móviles
-- 🔄 **API REST**: Endpoints para integración externa
-
-## 🚀 Demo en Vivo
-
-### Dashboard Integrado
-Accede al dashboard principal con chatbot integrado:
-**http://localhost:5001/dashboard-alternativo**
-
-### Análisis OLAP
-Accede al dashboard de análisis multidimensional:
-**http://localhost:5001/olap**
-
-### Otras Interfaces
-- **Chatbot**: http://localhost:5001/chatbot
-- **Dashboard**: http://localhost:5001/dashboard
-- **API**: http://localhost:5001/api/
+- **API REST**: Endpoints para dashboard, filtros y análisis
+- **Filtros Inteligentes**: Sistema de intersecciones con validación
+- **Chatbot con LangChain**: Procesamiento de lenguaje natural
+- **Motor OLAP**: Análisis multidimensional avanzado
+- **Autenticación JWT**: Sistema de roles (Admin, Analista, Consultor)
+- **Rate Limiting**: Protección contra abuso de API
 
 ## 🛠️ Tecnologías
 
-### Backend
-- **Python 3.13** - Lenguaje principal
-- **Flask 3.1.2** - Framework web
-- **SQLAlchemy 2.0.43** - ORM
-- **Pandas 2.3.2** - Manipulación de datos
-- **PyMySQL 1.1.2** - Conector MySQL
+- **Flask 3.1** con Python 3.11+
+- **MySQL** para base de datos
+- **SQLAlchemy** para ORM
+- **LangChain** para IA
+- **Pandas** para procesamiento de datos
+- **PyJWT** para autenticación
 
-### Frontend
-- **HTML5/CSS3/JavaScript** - Interfaz web
-- **Bootstrap 5.3.0** - Framework CSS
-- **Chart.js** - Visualizaciones
-- **Font Awesome** - Iconografía
+## 📦 Instalación
 
-### Base de Datos
-- **MySQL 8.0** - Sistema de gestión
-- **Data Mart Dimensional** - Modelo estrella
+### Requisitos Previos
+- Python 3.11+
+- MySQL 8.0+
+- Git
 
-## 📦 Instalación Rápida
-
-### 1. Clonar Repositorio
+### Instalación
 ```bash
-git clone <repository-url>
-cd SugarBI
-```
+# Clonar repositorio
+git clone <repo-url>
+cd SugarBI-backend
 
-### 2. Crear Entorno Virtual
-```bash
+# Crear entorno virtual
 python -m venv venv
-# Windows
-venv\Scripts\activate
-# Linux/Mac
-source venv/bin/activate
-```
 
-### 3. Instalar Dependencias
-```bash
+# Activar entorno virtual
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# Instalar dependencias
 pip install -r requirements.txt
 ```
 
-### 4. Configurar Base de Datos
-Editar `config/config.ini`:
-```ini
-[mysql]
-host = localhost
-port = 3306
-user = tu_usuario
-password = tu_password
-database = sugarbi_db
+## 🔧 Configuración
+
+### Variables de Entorno
+Crear archivo `.env`:
+
+```env
+# Base de datos
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=sugarbi
+DB_USER=root
+DB_PASSWORD=toor
+
+# JWT
+JWT_SECRET_KEY=your-secret-key-here
+JWT_ACCESS_TOKEN_EXPIRES=3600
+
+# OpenAI (para chatbot)
+OPENAI_API_KEY=your-openai-api-key
+
+# Rate Limiting
+RATELIMIT_STORAGE_URL=memory://
 ```
 
-### 5. Inicializar Base de Datos
+### Base de Datos
 ```bash
-python etls/crear_tablas.py
-python etls/cargar_datos.py
+# Importar base de datos
+mysql -u root -p sugarbi < sugarbi_database_export.sql
 ```
 
-### 6. Ejecutar Aplicación
+## 🚀 Ejecución
+
+### Desarrollo
 ```bash
+# Activar entorno virtual
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
+
+# Ejecutar servidor
 python web/app.py
 ```
 
-## 🎮 Ejemplos de Uso
-
-### Consultas del Chatbot
-
-#### Rankings
-```
-"muestra el top 10 de fincas por producción"
-"mejores 5 variedades por TCH"
-"primeros 8 zonas por rendimiento"
-```
-
-#### Estadísticas
-```
-"¿cuál es el promedio de brix por finca?"
-"muestra la suma total de toneladas en 2025"
-"¿cuántas fincas hay en total?"
-```
-
-#### Tendencias
-```
-"muestra la tendencia de producción por mes en 2025"
-"evolución del TCH por año"
-"progresión de brix por trimestre"
-```
-
-### API REST
-
-#### Consulta del Chatbot
+### Producción
 ```bash
-curl -X POST http://localhost:5001/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{"query": "top 5 fincas por producción"}'
-```
+# Con Gunicorn
+gunicorn -w 4 -b 0.0.0.0:5001 web.app:app
 
-#### Estadísticas del Sistema
-```bash
-curl http://localhost:5001/api/estadisticas
-```
-
-### Análisis OLAP
-
-#### Consulta OLAP
-```bash
-curl -X POST http://localhost:5001/api/olap/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "operation": "drill_down",
-    "measures": ["toneladas"],
-    "dimensions": ["tiempo"],
-    "dimension_levels": {"tiempo": "year"},
-    "aggregation_functions": ["sum"]
-  }'
-```
-
-#### Dimensiones y Medidas Disponibles
-```bash
-curl http://localhost:5001/api/olap/dimensions
-curl http://localhost:5001/api/olap/measures
+# Con uWSGI
+uwsgi --http :5001 --module web.app:app --processes 4 --threads 2
 ```
 
 ## 📊 Estructura del Proyecto
 
 ```
-SugarBI/
-├── api/                    # API REST endpoints
-├── chatbot/               # Motor de chatbot
-│   ├── query_parser.py    # Parser de lenguaje natural
-│   └── sql_generator.py   # Generador de consultas SQL
-├── dashboard/             # Motor de visualizaciones
-├── etls/                  # Scripts ETL
-├── web/                   # Interfaz web
-│   ├── app.py             # Aplicación principal
-│   └── templates/         # Plantillas HTML
-├── config/                # Configuración
-├── raw_data/              # Datos fuente
-└── requirements.txt       # Dependencias
+SugarBI-backend/
+├── web/
+│   ├── app.py              # Aplicación principal Flask
+│   └── templates/          # Templates HTML
+├── auth/
+│   ├── models.py          # Modelos de usuario
+│   ├── routes.py          # Rutas de autenticación
+│   └── security.py        # Configuración de seguridad
+├── dashboard/
+│   └── powerbi_integration.py  # Integración PowerBI
+├── filter_intersections.py     # Lógica de filtros inteligentes
+├── filter_parser.py           # Parser de filtros
+├── requirements.txt           # Dependencias Python
+├── sugarbi_database_export.sql # Export de base de datos
+└── config.ini                # Configuración de base de datos
 ```
 
-## 🗄️ Modelo de Datos
+## 🔗 Endpoints API
 
-### Esquema Dimensional (Star Schema)
+### Autenticación
+- `POST /api/auth/login` - Iniciar sesión
+- `POST /api/auth/logout` - Cerrar sesión
+- `GET /api/auth/me` - Información del usuario
 
-- **Tabla de Hechos**: `hechos_cosecha` (métricas de producción)
-- **Dimensiones**:
-  - `dimfinca` - Información de fincas
-  - `dimvariedad` - Tipos de caña
-  - `dimzona` - Zonas geográficas
-  - `dimtiempo` - Dimensiones temporales
+### Dashboard
+- `GET /api/estadisticas` - Estadísticas globales
+- `GET /api/cosecha/top` - Top cosechas
+- `GET /api/cosecha-filtered` - Datos filtrados
 
-## 🌐 Endpoints de la API
+### Filtros Inteligentes
+- `GET /api/filter-options` - Opciones de filtros
+- `POST /api/filter-intersections` - Intersecciones de filtros
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| `POST` | `/api/chat` | Procesar consulta del chatbot |
-| `POST` | `/api/query/parse` | Solo parsear consulta |
-| `POST` | `/api/visualization/create` | Crear visualización |
-| `GET` | `/api/estadisticas` | Estadísticas del sistema |
-| `GET` | `/api/examples` | Ejemplos de consultas |
-| `POST` | `/api/olap/query` | Ejecutar consulta OLAP |
-| `GET` | `/api/olap/dimensions` | Dimensiones disponibles |
-| `GET` | `/api/olap/measures` | Medidas disponibles |
-| `GET` | `/api/olap/examples` | Ejemplos de consultas OLAP |
+### Chatbot
+- `POST /api/chat/query` - Consulta de chatbot
+- `GET /api/chat/examples` - Ejemplos de consultas
 
-## 🎨 Interfaces Disponibles
+### OLAP
+- `GET /api/olap/dimensions` - Dimensiones disponibles
+- `GET /api/olap/measures` - Medidas disponibles
+- `POST /api/olap/query` - Ejecutar consulta OLAP
 
-### 1. Dashboard Integrado (Recomendado)
-- **URL**: `/dashboard-alternativo`
-- **Layout**: 25% chatbot - 75% visualizaciones
-- **Características**: Interfaz unificada, análisis en tiempo real
+## 🔐 Autenticación y Roles
 
-### 2. Análisis OLAP
-- **URL**: `/olap`
-- **Características**: Análisis multidimensional, operaciones drill-down/roll-up
+### Roles Disponibles
+- **Admin**: Acceso completo a todas las funcionalidades
+- **Analista**: Dashboard, Chatbot, OLAP completo
+- **Consultor**: Dashboard y Chatbot solo lectura
 
-### 3. Chatbot Independiente
-- **URL**: `/chatbot`
-- **Características**: Chat dedicado, análisis de consultas
+### Uso de JWT
+```python
+# Headers requeridos
+Authorization: Bearer <jwt_token>
+```
 
-### 4. Dashboard Tradicional
-- **URL**: `/dashboard`
-- **Características**: Visualizaciones estáticas, estadísticas generales
+## 📊 Base de Datos
 
-## 🧪 Pruebas
+### Tablas Principales
+- `dimfinca` - Dimensiones de fincas
+- `dimvariedad` - Variedades de caña
+- `dimzona` - Zonas geográficas
+- `dimtiempo` - Dimensiones temporales
+- `hechos_cosecha` - Hechos de producción
 
-### Ejecutar Pruebas del Chatbot
+### Importar Datos
 ```bash
-python chatbot/test_simple.py
+# Restaurar desde export
+mysql -u root -p sugarbi < sugarbi_database_export.sql
+
+# Verificar datos
+mysql -u root -p -e "USE sugarbi; SELECT COUNT(*) FROM hechos_cosecha;"
 ```
 
-### Pruebas Manuales
-1. Acceder a http://localhost:5001/dashboard-alternativo
-2. Probar consultas en el chatbot
-3. Verificar visualizaciones
-4. Comprobar exportación de datos
+## 🐛 Troubleshooting
 
-## 📈 Características Avanzadas
+### Problemas Comunes
 
-- **Procesamiento de Lenguaje Natural**: Entiende consultas en español
-- **Generación Automática de SQL**: Convierte consultas a SQL optimizado
-- **Visualizaciones Inteligentes**: Selecciona el tipo de gráfico apropiado
-- **Exportación de Datos**: Descarga resultados en CSV
-- **Diseño Responsivo**: Funciona en desktop y móvil
+1. **Error de conexión a BD**: Verificar credenciales en `config.ini`
+2. **Error 500 en OLAP**: Verificar permisos de usuario
+3. **Rate limiting**: Ajustar límites en `auth/security.py`
+4. **Chatbot no responde**: Verificar `OPENAI_API_KEY`
 
-## 🔧 Configuración
-
-### Variables de Entorno
+### Logs
 ```bash
-export FLASK_ENV=development
-export FLASK_DEBUG=True
+# Habilitar logs detallados
+export FLASK_DEBUG=1
+python web/app.py
 ```
 
-### Configuración de Producción
-- Configurar servidor web (Nginx, Apache)
-- Usar WSGI server (Gunicorn, uWSGI)
-- Configurar HTTPS
-- Implementar autenticación
+## 🚀 Deployment
 
-## 📚 Documentación
+### Docker (Recomendado)
+```dockerfile
+FROM python:3.11-slim
 
-- **[Documentación Técnica Completa](DOCUMENTACION_TECNICA.md)**
-- **[Guía de API](docs/API.md)**
-- **[Guía de Despliegue](docs/DEPLOYMENT.md)**
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-## 🤝 Contribución
+COPY . .
+EXPOSE 5001
 
-1. Fork del repositorio
-2. Crear rama de feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit cambios (`git commit -am 'Agregar nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Crear Pull Request
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5001", "web.app:app"]
+```
 
-## 📞 Soporte
+### Variables de Entorno de Producción
+```env
+FLASK_ENV=production
+DB_HOST=your-db-host
+DB_PASSWORD=your-secure-password
+JWT_SECRET_KEY=your-production-secret
+OPENAI_API_KEY=your-openai-key
+```
 
-- **Issues**: [GitHub Issues](https://github.com/tu-usuario/SugarBI/issues)
-- **Documentación**: [Wiki del Proyecto](https://github.com/tu-usuario/SugarBI/wiki)
-- **Email**: soporte@sugarbi.com
+## 📝 Scripts Útiles
 
-## 📄 Licencia
+```bash
+# Backup de base de datos
+mysqldump -u root -p sugarbi > backup_$(date +%Y%m%d).sql
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
+# Verificar estado de la API
+curl http://localhost:5001/api/health
 
-## 🙏 Agradecimientos
-
-- Universidad de Nariño
-- Equipo de desarrollo SugarBI
-- Comunidad de código abierto
-
----
-
-**Desarrollado con ❤️ para el análisis inteligente de datos agrícolas**
-
-[![Made with Python](https://img.shields.io/badge/Made%20with-Python-blue.svg)](https://python.org)
-[![Powered by Flask](https://img.shields.io/badge/Powered%20by-Flask-green.svg)](https://flask.palletsprojects.com/)
+# Test de autenticación
+curl -X POST http://localhost:5001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+```
