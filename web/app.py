@@ -621,7 +621,16 @@ def get_cosecha_filtered():
         # Obtener datos filtrados usando sistema de intersecciones
         intersections = get_filter_intersections()
         group_by_finca = request.args.get('group_by_finca', 'true').lower() == 'true'
+        
+        print(f"🔍 DEBUG - Filtros recibidos: {filters}")
+        print(f"🔍 DEBUG - Límite: {limit}")
+        print(f"🔍 DEBUG - Agrupar por finca: {group_by_finca}")
+        
         data = intersections.get_filtered_data(filters, limit, group_by_finca)
+        
+        print(f"📊 DEBUG - Datos devueltos: {len(data)} registros")
+        if len(data) > 0:
+            print(f"📊 DEBUG - Primer registro: {data[0]}")
         
         return jsonify({
             "success": True,
@@ -1742,12 +1751,12 @@ def internal_error(error):
     return jsonify({"success": False, "error": "Error interno del servidor"}), 500
 
 if __name__ == '__main__':
-    print("🚀 Iniciando SugarBI Web Application...")
-    print("🤖 Chatbot: http://localhost:5001/chatbot")
-    print("📊 Dashboard: http://localhost:5001/dashboard")
-    print("🔍 OLAP: http://localhost:5001/olap")
-    print("📈 Power BI: http://localhost:5001/powerbi")
-    print("🌐 API: http://localhost:5001/api/")
-    print("📖 Documentación: http://localhost:5001/")
+    print("Iniciando SugarBI Web Application...")
+    print("Chatbot: http://localhost:5001/chatbot")
+    print("Dashboard: http://localhost:5001/dashboard")
+    print("OLAP: http://localhost:5001/olap")
+    print("Power BI: http://localhost:5001/powerbi")
+    print("API: http://localhost:5001/api/")
+    print("Documentación: http://localhost:5001/")
     
     app.run(debug=True, host='0.0.0.0', port=5001)
