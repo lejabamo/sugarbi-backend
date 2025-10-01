@@ -208,7 +208,6 @@ class FilterIntersections:
                 'tch': 'mean',
                 'brix': 'mean', 
                 'sacarosa': 'mean',
-                'area_hectareas': 'sum',
                 'año': 'first',
                 'mes': 'first',
                 'nombre_mes': 'first',
