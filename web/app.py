@@ -620,13 +620,15 @@ def get_cosecha_filtered():
         
         # Obtener datos filtrados usando sistema de intersecciones
         intersections = get_filter_intersections()
-        data = intersections.get_filtered_data(filters, limit)
+        group_by_finca = request.args.get('group_by_finca', 'true').lower() == 'true'
+        data = intersections.get_filtered_data(filters, limit, group_by_finca)
         
         return jsonify({
             "success": True,
             "data": data,
             "count": len(data),
-            "filters_applied": filters
+            "filters_applied": filters,
+            "grouped_by_finca": group_by_finca
         })
         
     except Exception as e:

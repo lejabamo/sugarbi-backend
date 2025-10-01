@@ -172,8 +172,8 @@ class FilterIntersections:
         
         return options
     
-    def get_filtered_data(self, filters: Dict[str, Any], limit: int = 1000) -> List[Dict]:
-        """Obtiene los datos filtrados sin duplicados"""
+    def get_filtered_data(self, filters: Dict[str, Any], limit: int = 1000, group_by_finca: bool = True) -> List[Dict]:
+        """Obtiene los datos filtrados, opcionalmente agrupados por finca"""
         if self.base_data is None or self.base_data.empty:
             return []
         
@@ -200,7 +200,32 @@ class FilterIntersections:
             top_fincas_ids = filtered_data.groupby('id_finca')['toneladas_cana_molida'].sum().nlargest(top_n).index
             filtered_data = filtered_data[filtered_data['id_finca'].isin(top_fincas_ids)]
         
-        # Sort and limit
-        filtered_data = filtered_data.sort_values('toneladas_cana_molida', ascending=False).head(limit)
-        
-        return filtered_data.to_dict(orient='records')
+        # Agrupar por finca si se solicita (para evitar duplicados en gráficos)
+        if group_by_finca and 'id_finca' in filtered_data.columns and 'nombre_finca' in filtered_data.columns:
+            # Agrupar por finca y sumar toneladas, promediar otras métricas
+            grouped_data = filtered_data.groupby(['id_finca', 'nombre_finca']).agg({
+                'toneladas_cana_molida': 'sum',
+                'tch': 'mean',
+                'brix': 'mean', 
+                'sacarosa': 'mean',
+                'area_hectareas': 'sum',
+                'año': 'first',
+                'mes': 'first',
+                'nombre_mes': 'first',
+                'codigo_zona': 'first',
+                'nombre_zona': 'first',
+                'codigo_variedad': 'first',
+                'nombre_variedad': 'first'
+            }).reset_index()
+            
+            # Crear etiqueta única para la finca
+            grouped_data['finca_label'] = grouped_data['nombre_finca'] + ' (' + grouped_data['año'].astype(str) + '/' + grouped_data['mes'].astype(str) + ')'
+            
+            # Sort and limit
+            grouped_data = grouped_data.sort_values('toneladas_cana_molida', ascending=False).head(limit)
+            
+            return grouped_data.to_dict(orient='records')
+        else:
+            # Mantener registros individuales (para análisis detallado)
+            filtered_data = filtered_data.sort_values('toneladas_cana_molida', ascending=False).head(limit)
+            return filtered_data.to_dict(orient='records')
