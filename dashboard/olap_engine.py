@@ -228,6 +228,10 @@ class OLAEEngine:
                         select_parts.append(f"COUNT(h.{column}) as {measure}_count")
                     elif agg_func == AggregationFunction.STD:
                         select_parts.append(f"STDDEV(h.{column}) as {measure}_std")
+                    elif agg_func == AggregationFunction.VARIANCE:
+                        select_parts.append(f"VARIANCE(h.{column}) as {measure}_variance")
+                    elif agg_func == AggregationFunction.MEDIAN:
+                        select_parts.append(f"PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY h.{column}) as {measure}_median")
         
         # Construir FROM y JOINs
         from_clause = "FROM hechos_cosecha h"

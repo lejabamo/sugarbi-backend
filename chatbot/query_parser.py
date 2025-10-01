@@ -76,7 +76,7 @@ class QueryParser:
                 r'fincas?', r'predios?', r'plantaciones?', r'campos?'
             ],
             DimensionType.VARIEDAD: [
-                r'variedades?', r'tipos?\s+de\s+caña', r'cultivares?', r'especies?'
+                r'variedad(?:es)?', r'tipos?\s+de\s+caña', r'cultivares?', r'especies?'
             ],
             DimensionType.ZONA: [
                 r'zonas?', r'regiones?', r'[áa]reas?', r'sectores?'
@@ -162,6 +162,12 @@ class QueryParser:
 
     def _detect_query_type(self, query: str) -> QueryType:
         """Detecta el tipo de consulta"""
+        # Prioridad: si pide "por mes" o "por año", considerar tendencia (serie temporal)
+        if re.search(r'por\s+(cada\s+)?a[ñn]o(s)?', query, re.IGNORECASE):
+            return QueryType.TREND
+        if re.search(r'por\s+mes(es)?', query, re.IGNORECASE):
+            return QueryType.TREND
+
         for query_type, patterns in self.query_type_patterns.items():
             for pattern in patterns:
                 if re.search(pattern, query, re.IGNORECASE):
@@ -189,6 +195,9 @@ class QueryParser:
 
     def _detect_dimension(self, query: str) -> DimensionType:
         """Detecta la dimensión principal de la consulta"""
+        # Si se pide por año/mes, priorizar dimensión tiempo
+        if re.search(r'por\s+(cada\s+)?a[ñn]o(s)?', query, re.IGNORECASE) or re.search(r'por\s+mes(es)?', query, re.IGNORECASE):
+            return DimensionType.TIEMPO
         for dimension, patterns in self.dimension_patterns.items():
             for pattern in patterns:
                 if re.search(pattern, query, re.IGNORECASE):
@@ -237,9 +246,9 @@ class QueryParser:
 
     def _detect_time_period(self, query: str) -> Optional[str]:
         """Detecta el período temporal de la consulta"""
-        if re.search(r'por\s+mes', query, re.IGNORECASE):
+        if re.search(r'por\s+(cada\s+)?mes(es)?', query, re.IGNORECASE):
             return 'monthly'
-        elif re.search(r'por\s+a[ñn]o', query, re.IGNORECASE):
+        elif re.search(r'por\s+(cada\s+)?a[ñn]o(s)?', query, re.IGNORECASE):
             return 'yearly'
         elif re.search(r'tendencia|evoluci[oó]n', query, re.IGNORECASE):
             return 'trend'

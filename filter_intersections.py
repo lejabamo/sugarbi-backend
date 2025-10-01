@@ -137,6 +137,7 @@ class FilterIntersections:
             for _, zona in zonas_disponibles.iterrows():
                 count = len(filtered_data[filtered_data['codigo_zona'] == zona['codigo_zona']])
                 options['zonas'].append({
+                    'zona_id': int(zona['codigo_zona']) if pd.notna(zona['codigo_zona']) else None,
                     'codigo_zona': int(zona['codigo_zona']) if pd.notna(zona['codigo_zona']) else None,
                     'nombre_zona': str(zona['nombre_zona']) if pd.notna(zona['nombre_zona']) else 'N/A',
                     'count': int(count)

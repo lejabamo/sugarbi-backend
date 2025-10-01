@@ -575,7 +575,7 @@ def get_filter_options():
         if request.args.get('variedad_id'):
             current_filters['variedad_id'] = int(request.args.get('variedad_id'))
         if request.args.get('zona_id'):
-            current_filters['zona_id'] = request.args.get('zona_id')
+            current_filters['zona_id'] = int(request.args.get('zona_id'))
         if request.args.get('año'):
             current_filters['año'] = int(request.args.get('año'))
         if request.args.get('mes'):
@@ -607,7 +607,7 @@ def get_cosecha_filtered():
         if request.args.get('variedad_id'):
             filters['variedad_id'] = int(request.args.get('variedad_id'))
         if request.args.get('zona_id'):
-            filters['zona_id'] = request.args.get('zona_id')
+            filters['zona_id'] = int(request.args.get('zona_id'))
         if request.args.get('año'):
             filters['año'] = int(request.args.get('año'))
         if request.args.get('mes'):
@@ -772,13 +772,30 @@ def process_chat_query_langchain():
             "tiempo": DimensionType.TIEMPO
         }
         
+        # Detectar granularidad temporal si LangChain no la provee
+        detected_time_period = langchain_result.get("time_period")
+        if not detected_time_period:
+            ql = query.lower()
+            if "por mes" in ql or "cada mes" in ql or "por cada mes" in ql:
+                detected_time_period = "monthly"
+            elif "por año" in ql or "por cada año" in ql or "por an" in ql:
+                detected_time_period = "yearly"
+
+        # Forzar tipo TREND si hay time_period y ajustar dimensión
+        query_type = query_type_map.get(langchain_result.get("query_type", "basic"), QueryType.BASIC)
+        dimension = dimension_type_map.get(langchain_result.get("dimension", "finca"), DimensionType.FINCA)
+        
+        if detected_time_period:
+            query_type = QueryType.TREND
+            dimension = DimensionType.TIEMPO
+        
         intent = QueryIntent(
-            query_type=query_type_map.get(langchain_result.get("query_type", "basic"), QueryType.BASIC),
+            query_type=query_type,
             metric=metric_type_map.get(langchain_result.get("metric", "toneladas"), MetricType.TONELADAS),
-            dimension=dimension_type_map.get(langchain_result.get("dimension", "finca"), DimensionType.FINCA),
+            dimension=dimension,
             filters=langchain_result.get("filters", {}),
             limit=langchain_result.get("limit", 10),
-            time_period=None
+            time_period=detected_time_period
         )
         
         # Paso 3: Generar SQL
@@ -815,35 +832,149 @@ def process_chat_query_langchain():
         # Determinar tipo de gráfica
         chart_type = "line" if intent.query_type == QueryType.TREND else "bar"
         
-        # Encontrar columnas para visualización
+        # Encontrar columnas para visualización con prioridad para series temporales
         x_column = None
         y_column = None
         
+        # Prioridad para series temporales: nombre_mes, mes, año
+        if intent.query_type == QueryType.TREND:
+            for col in available_columns:
+                if 'nombre_mes' in col.lower():
+                    x_column = col
+                    break
+                elif 'mes' in col.lower() and 'nombre' not in col.lower():
+                    x_column = col
+                    break
+                elif 'año' in col.lower():
+                    x_column = col
+                    break
+        
+        # Para series temporales, crear etiquetas más descriptivas
+        if intent.query_type == QueryType.TREND and data_for_viz:
+            # Normalizar nombres de columnas que vienen con prefijos (p. ej. "t.mes")
+            lower_cols = [c.lower() for c in available_columns]
+            nombre_mes_key = next((c for c in available_columns if 'nombre_mes' in c.lower()), None)
+            mes_key = next((c for c in available_columns if ('mes' in c.lower() and 'nombre' not in c.lower())), None)
+            anio_key = next((c for c in available_columns if ('año' in c.lower() or 'anio' in c.lower())), None)
+
+            # Si tenemos nombre_mes, usarlo como X
+            if nombre_mes_key:
+                x_column = nombre_mes_key
+            # Si tenemos mes y año, combinar para crear etiquetas descriptivas
+            elif mes_key and anio_key:
+                for record in data_for_viz:
+                    mes_num = record.get(mes_key, '')
+                    anio_val = record.get(anio_key, '')
+                    if mes_num and anio_val:
+                        meses = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                                 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+                        try:
+                            mes_int = int(mes_num)
+                        except Exception:
+                            # Si viene como texto tipo "01", intentar limpiar
+                            try:
+                                mes_int = int(str(mes_num).lstrip('0') or '0')
+                            except Exception:
+                                mes_int = 0
+                        if 1 <= mes_int <= 12:
+                            record['etiqueta_temporal'] = f"{meses[mes_int]} {anio_val}"
+                        else:
+                            record['etiqueta_temporal'] = f"Mes {mes_num} {anio_val}"
+                x_column = 'etiqueta_temporal'
+        
+        # Si no es tendencia o no se encontró columna temporal, buscar por dimensión
+        if not x_column:
+            for col in available_columns:
+                if intent.dimension.value.lower() in col.lower() or any(keyword in col.lower() for keyword in ['nombre', 'finca', 'variedad', 'zona']):
+                    x_column = col
+                    break
+        
+        # Buscar columna Y con prioridad para totales
         for col in available_columns:
-            if any(keyword in col.lower() for keyword in ['finca', 'variedad', 'zona', 'tiempo', 'año', 'mes']):
-                x_column = col
-            elif any(keyword in col.lower() for keyword in ['toneladas', 'tch', 'brix', 'sacarosa', 'total', 'promedio']):
+            if 'total_' in col.lower() and intent.metric.value.lower() in col.lower():
                 y_column = col
+                break
+            elif any(keyword in col.lower() for keyword in ['toneladas', 'tch', 'brix', 'sacarosa']) and 'total' in col.lower():
+                y_column = col
+                break
+        
+        # Fallback para Y
+        if not y_column:
+            for col in available_columns:
+                if any(keyword in col.lower() for keyword in ['toneladas', 'tch', 'brix', 'sacarosa', 'total', 'promedio']):
+                    y_column = col
+                    break
         
         if not x_column:
             x_column = available_columns[0] if available_columns else "item"
         if not y_column:
             y_column = available_columns[1] if len(available_columns) > 1 else available_columns[0]
         
+        # Resaltar barra del elemento máximo, mínimo y promedio
+        max_index = None
+        min_index = None
+        avg_index = None
+        try:
+            if x_column and data_for_viz:
+                # Encontrar el índice del elemento con mayor y menor métrica
+                metric_values = [rec.get(y_column) or 0 for rec in data_for_viz[:10]]
+                if metric_values:
+                    max_val = max(metric_values)
+                    min_val = min(metric_values)
+                    avg_val = sum(metric_values) / len(metric_values)
+                    max_index = metric_values.index(max_val)
+                    min_index = metric_values.index(min_val)
+                    
+                    # Encontrar el valor más cercano al promedio
+                    if len(metric_values) > 2:  # Solo si hay más de 2 valores
+                        closest_to_avg = min(metric_values, key=lambda x: abs(x - avg_val))
+                        avg_index = metric_values.index(closest_to_avg)
+                        # Si el promedio coincide con max o min, no resaltarlo
+                        if avg_index == max_index or avg_index == min_index:
+                            avg_index = None
+        except Exception:
+            max_index = None
+            min_index = None
+            avg_index = None
+
+        # Títulos y labels consistentes
+        metric_label_title = intent.metric.value.capitalize()
+        dimension_label_title = intent.dimension.value.capitalize()
+        title_prefix = "Tendencia" if intent.query_type == QueryType.TREND else "Distribución"
+        chart_title = f"{title_prefix} de {metric_label_title} por {dimension_label_title}"
+
         visualization = {
             "type": chart_type,
             "data": {
                 "labels": [str(record.get(x_column, f"Item {i}")) for i, record in enumerate(data_for_viz[:10])],
                 "datasets": [{
-                    "label": y_column or "Valor",
+                    "label": y_column or metric_label_title,
                     "data": [record.get(y_column, 0) for record in data_for_viz[:10]],
-                    "backgroundColor": "rgba(59, 130, 246, 0.5)",
-                    "borderColor": "rgba(59, 130, 246, 1)",
+                    "backgroundColor": [
+                        # Verde para máximo, rojo para mínimo, naranja para promedio, azul para intermedios
+                        ("rgba(34, 197, 94, 0.6)" if max_index is not None and idx == max_index else
+                         "rgba(239, 68, 68, 0.6)" if min_index is not None and idx == min_index else
+                         "rgba(249, 115, 22, 0.6)" if avg_index is not None and idx == avg_index else
+                         "rgba(59, 130, 246, 0.5)")
+                        for idx, _ in enumerate(data_for_viz[:10])
+                    ],
+                    "borderColor": [
+                        # Verde para máximo, rojo para mínimo, naranja para promedio, azul para intermedios
+                        ("rgba(34, 197, 94, 1)" if max_index is not None and idx == max_index else
+                         "rgba(239, 68, 68, 1)" if min_index is not None and idx == min_index else
+                         "rgba(249, 115, 22, 1)" if avg_index is not None and idx == avg_index else
+                         "rgba(59, 130, 246, 1)")
+                        for idx, _ in enumerate(data_for_viz[:10])
+                    ],
                     "borderWidth": 1
                 }]
             },
             "options": {
                 "responsive": True,
+                "plugins": {
+                    "title": {"display": True, "text": chart_title},
+                    "legend": {"display": True}
+                },
                 "scales": {
                     "y": {
                         "beginAtZero": True
@@ -854,6 +985,144 @@ def process_chat_query_langchain():
         
         # Paso 7: Generar respuesta natural
         natural_response = langchain_chatbot.generate_response(query, data_for_viz, sql_query)
+
+        # Generador determinístico adicional para asegurar una respuesta clara
+        try:
+            metric_candidates = [
+                'toneladas_cana_molida', 'tch', 'brix', 'sacarosa', 'area_cosechada', 'rendimiento_teorico',
+                'total', 'promedio'
+            ]
+            # Elegir columna de métrica basada en intención o nombres conocidos
+            metric_col = None
+            metric_hint = intent.metric.value.lower()
+            for col in available_columns:
+                if metric_hint in col.lower():
+                    metric_col = col
+                    break
+            if not metric_col:
+                for name in metric_candidates:
+                    if name in available_columns:
+                        metric_col = name
+                        break
+            # Elegir columna de dimensión (nombre)
+            dim_candidates = ['nombre_finca', 'finca', 'nombre_variedad', 'variedad', 'nombre_zona', 'zona']
+            dim_col = None
+            for col in available_columns:
+                if any(keyword in col.lower() for keyword in ['finca', 'variedad', 'zona']):
+                    dim_col = col
+                    break
+            # Detectar intención de promedio por tipo o por texto libre
+            lower_query = (query or '').lower()
+            query_mentions_avg = any(k in lower_query for k in ['promedio', 'media', 'average', 'avg'])
+
+            # Si la consulta es de tipo estadística/promedio, componer respuesta directa
+            avg_summary = None
+            try:
+                is_stats = (intent.query_type == QueryType.STATISTICS) or query_mentions_avg or \
+                           (y_column and any(k in y_column.lower() for k in ['promedio', 'avg', 'media']))
+                if is_stats and (metric_col or y_column):
+                    col_for_avg = metric_col or y_column
+                    values = [rec.get(col_for_avg) for rec in data_for_viz if isinstance(rec.get(col_for_avg), (int, float))]
+                    if not values and data_for_viz and isinstance(data_for_viz[0].get(col_for_avg), (int, float)):
+                        values = [data_for_viz[0].get(col_for_avg)]
+                    if values:
+                        avg_val = sum(values) / len(values)
+                        metric_label_avg = intent.metric.value.lower()
+                        metric_label_avg = 'toneladas' if 'toneladas' in metric_label_avg else metric_label_avg
+                        avg_summary = f"El promedio de {metric_label_avg} es de {avg_val:,.0f} {metric_label_avg}."
+            except Exception:
+                avg_summary = None
+
+            # Si es una consulta de tendencia temporal, generar resumen de serie
+            trend_summary = None
+            try:
+                if intent.query_type == QueryType.TREND and len(data_for_viz) > 1:
+                    # Calcular total general
+                    total_val = sum(rec.get(y_column, 0) for rec in data_for_viz if isinstance(rec.get(y_column), (int, float)))
+                    metric_label_trend = intent.metric.value.lower()
+                    metric_label_trend = 'toneladas' if 'toneladas' in metric_label_trend else metric_label_trend
+                    
+                    # Determinar período
+                    if intent.time_period == 'monthly':
+                        period_text = f"por mes en {filters.get('año', 'el período seleccionado')}"
+                    elif intent.time_period == 'yearly':
+                        period_text = "por año"
+                    else:
+                        period_text = "en el período"
+                    
+                    # Corregir gramática para toneladas
+                    if 'toneladas' in metric_label_trend:
+                        metric_label_trend = 'toneladas'
+                    
+                    if intent.time_period == 'monthly':
+                        trend_summary = f"La producción total {period_text} fue de {total_val:,.0f} {metric_label_trend}. Se muestran {len(data_for_viz)} meses."
+                    elif intent.time_period == 'yearly':
+                        trend_summary = f"La producción total {period_text} fue de {total_val:,.0f} {metric_label_trend}. Se muestran {len(data_for_viz)} años."
+                    else:
+                        trend_summary = f"La producción total {period_text} fue de {total_val:,.0f} {metric_label_trend}. Se muestran {len(data_for_viz)} períodos."
+            except Exception:
+                trend_summary = None
+
+            # Determinar top registro
+            top_item = None
+            if metric_col and dim_col:
+                top_item = max(data_for_viz, key=lambda r: (r.get(metric_col) or 0))
+            # Formatear periodo si hay filtros de tiempo
+            period_text = ''
+            f = intent.filters or {}
+            if f.get('año') and f.get('mes'):
+                # Intentar usar nombre_mes si está disponible
+                month_name = None
+                for rec in data_for_viz:
+                    if rec.get('nombre_mes'):
+                        month_name = rec['nombre_mes']
+                        break
+                if not month_name:
+                    meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+                    idx = int(f['mes']) - 1
+                    if 0 <= idx < 12:
+                        month_name = meses[idx]
+                if month_name:
+                    period_text = f" en {month_name} de {f['año']}"
+                else:
+                    period_text = f" en {f['mes']}/{f['año']}"
+            elif f.get('año'):
+                period_text = f" en {f['año']}"
+            # Construir resumen si se pudo determinar
+            if trend_summary:
+                deterministic_summary = trend_summary
+            elif avg_summary:
+                deterministic_summary = avg_summary
+            elif top_item and metric_col and dim_col:
+                metric_value = top_item.get(metric_col) or 0
+                entity_name = str(top_item.get(dim_col))
+                metric_label = intent.metric.value.lower()
+                # Normalizar etiqueta
+                metric_label = 'toneladas' if 'toneladas' in metric_label else metric_label
+                deterministic_summary = f"La {intent.dimension.value} más destacada{period_text} es {entity_name} con {metric_value:,.0f} {metric_label}."
+            else:
+                # Si solo hay un dato numérico sin dimensión, genera un resumen genérico
+                single_summary = None
+                try:
+                    col = metric_col or y_column
+                    if col and data_for_viz and isinstance(data_for_viz[0].get(col), (int, float)):
+                        val = data_for_viz[0].get(col)
+                        metric_label_single = intent.metric.value.lower()
+                        metric_label_single = 'toneladas' if 'toneladas' in metric_label_single else metric_label_single or 'valor'
+                        single_summary = f"El {('promedio de ' if query_mentions_avg else '')}{metric_label_single}{period_text} fue de {val:,.0f} {metric_label_single}."
+                except Exception:
+                    single_summary = None
+                deterministic_summary = single_summary
+
+            # Aplicar la respuesta determinística si existe o si la respuesta generada es genérica
+            if deterministic_summary:
+                if not natural_response or 'Se encontraron' in natural_response:
+                    natural_response = deterministic_summary
+                else:
+                    natural_response = f"{deterministic_summary}\n\n{natural_response}"
+        except Exception:
+            # No bloquear en caso de fallo; mantener la respuesta existente
+            pass
         
         return jsonify({
             "success": True,

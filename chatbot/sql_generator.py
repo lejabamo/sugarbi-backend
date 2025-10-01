@@ -196,16 +196,22 @@ class SQLGenerator:
         return self._generate_basic_sql(intent)
 
     def _generate_trend_sql(self, intent: QueryIntent) -> str:
-        """Genera SQL para consultas de tendencias temporales"""
+        """Genera SQL para consultas de tendencias temporales (agrupa por tiempo)."""
         metric_column = self.metric_columns[intent.metric]
         
-        select_parts = [
-            "t.año",
-            "t.mes",
-            "t.nombre_mes",
+        # Si el período detectado es yearly o si el texto sugiere "por año", agrupar solo por año
+        select_parts = ["t.año"]
+        group_by_parts = ["t.año"]
+        order_by_parts = ["t.año"]
+        if getattr(intent, 'time_period', None) == 'monthly':
+            select_parts.extend(["t.mes", "t.nombre_mes"])
+            group_by_parts.extend(["t.mes", "t.nombre_mes"])
+            order_by_parts.extend(["t.mes"])
+        
+        select_parts.extend([
             f"SUM({metric_column}) as total_{intent.metric.value}",
             f"AVG({metric_column}) as promedio_{intent.metric.value}"
-        ]
+        ])
         
         from_clause = "FROM hechos_cosecha h"
         joins = ["JOIN dimtiempo t ON h.codigo_tiempo = t.tiempo_id"]
@@ -225,8 +231,8 @@ class SQLGenerator:
             sql_parts.append(f"WHERE {' AND '.join(where_conditions)}")
         
         sql_parts.extend([
-            "GROUP BY t.año, t.mes, t.nombre_mes",
-            "ORDER BY t.año, t.mes"
+            f"GROUP BY {', '.join(group_by_parts)}",
+            f"ORDER BY {', '.join(order_by_parts)}"
         ])
         
         return "\n".join(sql_parts)
