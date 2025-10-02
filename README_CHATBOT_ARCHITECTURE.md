@@ -685,3 +685,4 @@ mysql -u root -p < sugarbi_database_export.sql
 - **Licencia**: MIT
 
 Para más información técnica, consultar la documentación completa en `/docs/`.
+

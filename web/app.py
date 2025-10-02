@@ -56,9 +56,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Inicializar extensiones
 db.init_app(app)
 CORS(app, 
-     origins=["http://localhost:5173", "http://localhost:5174"], 
+     origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5194", "http://localhost:5195"], 
      supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization"],
+     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 # Deshabilitar CSRF completamente para desarrollo
 # csrf = CSRFProtect(app)
