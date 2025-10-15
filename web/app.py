@@ -3,8 +3,8 @@ Aplicación web principal de SugarBI
 Integra chatbot, dashboard, API y sistema de autenticación en una interfaz web completa
 """
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
-from flask_cors import CORS
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, send_from_directory
+from flask_cors import CORS, cross_origin
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
 import sys
@@ -18,6 +18,7 @@ sys.path.append(str(root_dir))
 
 from chatbot.query_parser import QueryParser
 from chatbot.sql_generator import SQLGenerator
+from chatbot.sql_agent import SugarBISQLAgent
 from dashboard.visualization_engine import VisualizationEngine, ChartConfig, ChartType
 from auth.models import db, User, Role, SessionToken, AuditLog
 from auth.security import security_manager, require_auth, require_permission, audit_log
@@ -52,13 +53,13 @@ login_manager.login_view = 'login'
 login_manager.login_message = 'Por favor, inicia sesión para acceder a esta página.'
 login_manager.login_message_category = 'info'
 
-# Configurar CORS de manera segura
-try:
-    from config.security_config import SecurityConfig
-    cors_config = SecurityConfig.get_cors_config()
-    CORS(app, **cors_config)
-except ImportError:
-    CORS(app)
+# Configurar CORS para permitir frontend
+CORS(app, 
+     origins=['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'],
+     supports_credentials=True,
+     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+     expose_headers=['Content-Range', 'X-Content-Range'])
 
 # Inicializar gestor de seguridad
 security_manager.init_app(app)
@@ -76,21 +77,40 @@ viz_engine = VisualizationEngine()
 # Configuración de la base de datos
 def get_db_connection():
     """Crear conexión a la base de datos"""
+    # Usar configuración directa del archivo config.ini
+    ruta_base = Path(__file__).parent.parent
+    config = configparser.ConfigParser()
+    config.read(ruta_base / 'config' / 'config.ini', encoding='utf-8')
+    
+    db_config = config['mysql']
+    cadena_conexion = (
+        f"mysql+pymysql://{db_config['user']}:{db_config['password']}"
+        f"@{db_config['host']}:{db_config['port']}/{db_config['database']}"
+    )
+    return create_engine(cadena_conexion)
+
+# Inicializar agente SQL con LangChain
+def get_sql_agent():
+    """Obtener instancia del agente SQL"""
     try:
-        from config.security_config import SecurityConfig
-        return create_engine(SecurityConfig.get_database_uri())
-    except ImportError:
-        # Fallback a configuración original
+        # Obtener configuración de base de datos
         ruta_base = Path(__file__).parent.parent
         config = configparser.ConfigParser()
         config.read(ruta_base / 'config' / 'config.ini', encoding='utf-8')
         
         db_config = config['mysql']
-        cadena_conexion = (
+        database_url = (
             f"mysql+pymysql://{db_config['user']}:{db_config['password']}"
             f"@{db_config['host']}:{db_config['port']}/{db_config['database']}"
         )
-        return create_engine(cadena_conexion)
+        
+        # Obtener API key de OpenAI (opcional)
+        openai_api_key = os.getenv('OPENAI_API_KEY')
+        
+        return SugarBISQLAgent(database_url, openai_api_key)
+    except Exception as e:
+        print(f"Error inicializando agente SQL: {e}")
+        return None
 
 # Rutas principales
 @app.route('/')
@@ -310,27 +330,28 @@ def register():
     return render_template('auth/register.html', form=form)
 
 # API Endpoints
-@app.route('/api/chat', methods=['POST'])
+@app.route('/api/chat', methods=['POST', 'OPTIONS'])
+@cross_origin(origins=['http://localhost:5173'], supports_credentials=True)
 # @require_auth  # Temporalmente deshabilitado para debug
 # @audit_log('CHAT_QUERY', 'chatbot')  # Temporalmente deshabilitado para debug
 def process_chat_query():
-    print("🚀 ENDPOINT EJECUTÁNDOSE")
     """
-    Procesa consultas del chatbot y retorna visualizaciones
+    Procesa consultas del chatbot usando LangChain SQL Agent
+    Convierte lenguaje natural a SQL y ejecuta consultas inteligentes
     
     Ejemplo de request:
     {
-        "query": "muestra la cantidad en toneladas de caña producida del top 10 de las fincas en el 2025"
+        "query": "¿cuáles son las 5 mejores variedades por TCH?"
     }
     """
-    print("🔍 DEBUG: Iniciando process_chat_query")
+    # Manejar peticiones OPTIONS para CORS
+    if request.method == 'OPTIONS':
+        return '', 200
+    
     try:
-        # Obtener datos JSON (Flask maneja automáticamente la codificación UTF-8)
-        print("🔍 DEBUG: Obteniendo datos JSON")
+        # Obtener datos JSON
         data = request.get_json(force=True)
-        print(f"🔍 DEBUG: Datos recibidos: {data}")
         query = data.get('query', '').strip()
-        print(f"🔍 DEBUG: Query extraída: '{query}'")
         
         if not query:
             return jsonify({
@@ -338,123 +359,47 @@ def process_chat_query():
                 "error": "Consulta vacía"
             }), 400
         
-        # Paso 1: Parsear la consulta
-        print("🔍 DEBUG: Parseando consulta")
-        intent = query_parser.parse(query)
-        print(f"🔍 DEBUG: Intent parseado: {intent}")
+        print(f"🤖 Procesando consulta: {query}")
         
-        # Paso 2: Generar SQL
-        print("🔍 DEBUG: Generando SQL")
-        sql_query = sql_generator.generate_sql(intent)
-        print(f"🔍 DEBUG: SQL generado: {sql_query[:100]}...")
-        
-        # Paso 3: Ejecutar consulta usando SQLAlchemy directamente
-        from sqlalchemy import text
-        try:
-            result = db.session.execute(text(sql_query))
-            df = pd.DataFrame(result.fetchall(), columns=result.keys())
-        except Exception as e:
+        # Obtener agente SQL
+        sql_agent = get_sql_agent()
+        if not sql_agent:
             return jsonify({
                 "success": False,
-                "error": f"Error ejecutando consulta: {str(e)}"
+                "error": "Error inicializando agente SQL"
             }), 500
         
-        if df.empty:
+        # Procesar consulta con LangChain
+        result = sql_agent.process_question(query)
+        
+        if not result["success"]:
             return jsonify({
                 "success": False,
-                "error": "No se encontraron datos para la consulta"
-            }), 404
+                "error": result.get("error", "Error desconocido"),
+                "natural_response": result.get("natural_response", "Lo siento, hubo un error al procesar tu consulta.")
+            }), 500
         
-        # Paso 4: Convertir datos para visualización
-        data_for_viz = df.to_dict('records')
-        
-        # Convertir tipos numpy a nativos de Python
-        for record in data_for_viz:
-            for key, value in record.items():
-                if pd.isna(value):
-                    record[key] = None
-                elif isinstance(value, (np.integer, np.int64)):
-                    record[key] = int(value)
-                elif isinstance(value, (np.floating, np.float64)):
-                    record[key] = float(value)
-        
-        # Paso 5: Determinar columnas para visualización
-        available_columns = list(data_for_viz[0].keys()) if data_for_viz else []
-        
-        # Encontrar columna X (dimensión)
-        x_column = None
-        for col in available_columns:
-            if intent.dimension.value.lower() in col.lower() or any(keyword in col.lower() for keyword in ['nombre', 'finca', 'variedad', 'zona']):
-                x_column = col
-                break
-        
-        # Encontrar columna Y (métrica)
-        y_column = None
-        for col in available_columns:
-            if intent.metric.value.lower() in col.lower() or any(keyword in col.lower() for keyword in ['total', 'promedio', 'sum', 'avg']):
-                y_column = col
-                break
-        
-        # Si no se encuentran, usar las primeras columnas apropiadas
-        if not x_column:
-            x_column = available_columns[0] if available_columns else "columna_x"
-        if not y_column:
-            y_column = available_columns[1] if len(available_columns) > 1 else available_columns[0] if available_columns else "columna_y"
-        
-        # Paso 6: Determinar tipo de gráfico
-        chart_type = viz_engine.suggest_chart_type(
-            data_for_viz, 
-            x_column, 
-            y_column
-        )
-        
-        # Paso 7: Crear configuración de visualización
-        chart_config = ChartConfig(
-            chart_type=chart_type,
-            title=f"Consulta: {query}",
-            x_axis=x_column,
-            y_axis=y_column,
-            data=data_for_viz
-        )
-        
-        # Paso 8: Generar visualización
-        visualization = viz_engine.create_visualization(chart_config)
-        
-        print("🔍 DEBUG: Preparando respuesta exitosa")
-        response_data = {
+        # Retornar respuesta completa
+        return jsonify({
             "success": True,
-            "data": {
-                "query": query,
-                "intent": {
-                    "type": intent.query_type.value,
-                    "metric": intent.metric.value,
-                    "dimension": intent.dimension.value,
-                    "filters": intent.filters,
-                    "limit": intent.limit
-                },
-                "sql": sql_query,
-                "visualization": visualization,
-                "raw_data": data_for_viz,
-                "record_count": len(data_for_viz)
-            }
-        }
-        print(f"🔍 DEBUG: Respuesta preparada: {response_data}")
-        return jsonify(response_data)
+            "query": result["query"],
+            "intent": result["intent"],
+            "sql": result["sql"],
+            "visualization": result["visualization"],
+            "raw_data": result["data"],
+            "record_count": result["row_count"],
+            "natural_response": result["natural_response"]
+        })
         
-    except UnicodeDecodeError as e:
-        return jsonify({
-            "success": False,
-            "error": f"Error de codificación: {str(e)}"
-        }), 400
     except Exception as e:
-        import traceback
-        print(f"Error en /api/chat: {str(e)}")
-        print(f"Traceback: {traceback.format_exc()}")
+        print(f"❌ Error en process_chat_query: {e}")
         return jsonify({
             "success": False,
-            "error": str(e)
+            "error": f"Error interno: {str(e)}",
+            "natural_response": "Lo siento, hubo un error inesperado. Por favor, inténtalo de nuevo."
         }), 500
 
+# Endpoint para obtener estadísticas generales
 @app.route('/api/query/parse', methods=['POST'])
 @require_auth
 def parse_query_only():
@@ -529,7 +474,7 @@ def create_visualization():
         }), 500
 
 @app.route('/api/estadisticas')
-@require_auth
+# @require_auth  # Temporalmente deshabilitado para pruebas
 def get_estadisticas():
     """Obtener estadísticas generales del data mart"""
     try:
@@ -553,10 +498,10 @@ def get_estadisticas():
             AVG(tch) as promedio_tch,
             AVG(brix) as promedio_brix,
             AVG(sacarosa) as promedio_sacarosa,
-            MIN(t.año) as año_inicio,
-            MAX(t.año) as año_fin
+            MIN(t.anio) as año_inicio,
+            MAX(t.anio) as año_fin
         FROM hechos_cosecha h
-        JOIN dimtiempo t ON h.codigo_tiempo = t.tiempo_id
+        JOIN dimtiempo t ON CAST(h.codigo_tiempo AS SIGNED) = t.tiempo_id
         """
         result = db.session.execute(text(query))
         row = result.fetchone()
@@ -576,6 +521,252 @@ def get_estadisticas():
         return jsonify({
             "success": True,
             "data": stats
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ===== ENDPOINTS DE AUTENTICACIÓN API =====
+@app.route('/auth/api/login', methods=['POST'])
+def api_login():
+    """Endpoint de login para API"""
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return jsonify({
+                "success": False,
+                "error": "Username y password son requeridos"
+            }), 400
+        
+        # Buscar usuario en la base de datos
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            # Iniciar sesión
+            login_user(user, remember=True)
+            
+            return jsonify({
+                "success": True,
+                "message": "Login exitoso",
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "role": user.role.name if user.role else None
+                }
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Credenciales inválidas"
+            }), 401
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/auth/api/logout', methods=['POST'])
+@login_required
+def api_logout():
+    """Endpoint de logout para API"""
+    try:
+        logout_user()
+        return jsonify({
+            "success": True,
+            "message": "Logout exitoso"
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/auth/api/user/me')
+def api_user_me():
+    """Obtener información del usuario actual"""
+    try:
+        if current_user.is_authenticated:
+            return jsonify({
+                "success": True,
+                "user": {
+                    "id": current_user.id,
+                    "username": current_user.username,
+                    "email": current_user.email,
+                    "role": current_user.role.name if current_user.role else None
+                }
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "No hay sesión activa"
+            })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# ===== ENDPOINTS DE DIMENSIONES =====
+@app.route('/api/fincas')
+def get_fincas():
+    """Obtener lista de fincas para filtros"""
+    try:
+        engine = get_db_connection()
+        query = "SELECT finca_id, codigo_finca, nombre_finca FROM dimfinca ORDER BY nombre_finca"
+        result = pd.read_sql(query, engine)
+        
+        fincas = []
+        for _, row in result.iterrows():
+            fincas.append({
+                'finca_id': int(row['finca_id']),
+                'codigo_finca': str(row['codigo_finca']),
+                'nombre_finca': str(row['nombre_finca'])
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": fincas
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/variedades')
+def get_variedades():
+    """Obtener lista de variedades para filtros"""
+    try:
+        engine = get_db_connection()
+        query = "SELECT variedad_id, nombre_variedad FROM dimvariedad ORDER BY nombre_variedad"
+        result = pd.read_sql(query, engine)
+        
+        variedades = []
+        for _, row in result.iterrows():
+            variedades.append({
+                'variedad_id': int(row['variedad_id']),
+                'nombre_variedad': str(row['nombre_variedad'])
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": variedades
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/zonas')
+def get_zonas():
+    """Obtener lista de zonas para filtros"""
+    try:
+        engine = get_db_connection()
+        query = "SELECT codigo_zona, nombre_zona FROM dimzona ORDER BY codigo_zona"
+        result = pd.read_sql(query, engine)
+        
+        zonas = []
+        for _, row in result.iterrows():
+            zonas.append({
+                'codigo_zona': str(row['codigo_zona']),
+                'nombre_zona': str(row['nombre_zona'])
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": zonas
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/tiempo')
+def get_tiempo():
+    """Obtener lista de períodos de tiempo para filtros"""
+    try:
+        engine = get_db_connection()
+        query = """
+        SELECT DISTINCT 
+            tiempo_id, 
+            fecha, 
+            año, 
+            mes, 
+            nombre_mes, 
+            trimestre 
+        FROM dimtiempo 
+        ORDER BY año DESC, mes ASC
+        """
+        result = pd.read_sql(query, engine)
+        
+        tiempo = []
+        for _, row in result.iterrows():
+            tiempo.append({
+                'tiempo_id': int(row['tiempo_id']),
+                'fecha': str(row['fecha']),
+                'año': int(row['año']),
+                'mes': int(row['mes']),
+                'nombre_mes': str(row['nombre_mes']),
+                'trimestre': int(row['trimestre'])
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": tiempo
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/cosecha/top')
+def get_top_cosechas():
+    """Obtener top cosechas por diferentes criterios"""
+    try:
+        engine = get_db_connection()
+        
+        criterio = request.args.get('criterio', 'toneladas')  # toneladas, tch, brix
+        limit = request.args.get('limit', 10, type=int)
+        
+        # Mapear criterios a columnas
+        criterios_map = {
+            'toneladas': 'h.toneladas_cana_molida',
+            'tch': 'h.tch',
+            'brix': 'h.brix',
+            'sacarosa': 'h.sacarosa'
+        }
+        
+        if criterio not in criterios_map:
+            return jsonify({"success": False, "error": "Criterio no válido"}), 400
+        
+        query = f"""
+        SELECT 
+            f.nombre_finca,
+            v.nombre_variedad,
+            z.nombre_zona,
+            t.anio,
+            t.mes,
+            h.toneladas_cana_molida,
+            h.tch,
+            h.brix,
+            h.sacarosa,
+            h.rendimiento_teorico
+        FROM hechos_cosecha h
+        JOIN dimfinca f ON h.id_finca = f.finca_id
+        JOIN dimvariedad v ON h.codigo_variedad = v.variedad_id
+        JOIN dimzona z ON h.codigo_zona = z.codigo_zona
+        JOIN dimtiempo t ON h.codigo_tiempo = t.tiempo_id
+        ORDER BY {criterios_map[criterio]} DESC
+        LIMIT {limit}
+        """
+        
+        result = pd.read_sql(query, engine)
+        
+        return jsonify({
+            "success": True,
+            "data": result.to_dict('records'),
+            "criterio": criterio,
+            "total": len(result)
         })
         
     except Exception as e:

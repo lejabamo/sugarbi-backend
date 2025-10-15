@@ -40,7 +40,7 @@ class SecurityConfig:
     RATE_LIMIT_API = os.getenv('RATE_LIMIT_API', '100 per hour')
     
     # CORS Configuration
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5001,http://127.0.0.1:5001').split(',')
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5001,http://127.0.0.1:5001,http://localhost:5173,http://127.0.0.1:5173').split(',')
     CORS_METHODS = os.getenv('CORS_METHODS', 'GET,POST,PUT,DELETE,OPTIONS').split(',')
     CORS_HEADERS = os.getenv('CORS_HEADERS', 'Content-Type,Authorization').split(',')
     
