@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - SugarBI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4285f4;
+            --secondary-color: #34a853;
+            --accent-color: #fbbc04;
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --background: #ffffff;
+            --surface: #f8f9fa;
+            --border: #dadce0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
+        
+        body {
+            font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+        
+        .navbar {
+            background-color: var(--background);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+        }
+        
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+        
+        .nav-link {
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+        
+        .nav-link:hover {
+            color: var(--primary-color);
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 60px 0;
+            text-align: center;
+        }
+        
+        .hero-section h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 15px;
+        }
+        
+        .hero-section p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .feature-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.2s ease;
+            height: 100%;
+            background-color: var(--background);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow);
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .stats-section {
+            background-color: var(--surface);
+            padding: 40px 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            border-radius: 6px;
+            padding: 12px 24px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #3367d6;
+            border-color: #3367d6;
+            transform: translateY(-1px);
+        }
+        
+        .alert {
+            border-radius: 8px;
+            border: none;
+            padding: 20px;
+        }
+        
+        .alert-info {
+            background-color: #e8f0fe;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-seedling" style="color: #34a853;"></i> SugarBI
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/dashboard-alternativo">
+                    <i class="fas fa-chart-line"></i> Dashboard Integrado
+                </a>
+                <a class="nav-link" href="/chatbot">
+                    <i class="fas fa-robot"></i> Chatbot
+                </a>
+                <a class="nav-link" href="/olap">
+                    <i class="fas fa-cube"></i> OLAP
+                </a>
+                <a class="nav-link" href="/logout">
+                    <i class="fas fa-sign-out-alt"></i> Salir
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="container">
+            <h1><i class="fas fa-chart-bar"></i> Dashboard SugarBI</h1>
+            <p>Visualizaciones y análisis de datos de cosecha</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container py-5">
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Dashboard en desarrollo:</strong> Esta página está en construcción. 
+                    Por ahora, usa el <a href="/chatbot" class="alert-link">Chatbot</a> para hacer consultas y generar visualizaciones.
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="feature-card">
+                    <i class="fas fa-robot feature-icon" style="color: var(--primary-color);"></i>
+                    <h4>Acceso Rápido al Chatbot</h4>
+                    <p>Haz consultas en lenguaje natural y genera visualizaciones automáticamente.</p>
+                    <a href="/chatbot" class="btn btn-primary">
+                        <i class="fas fa-robot"></i> Ir al Chatbot
+                    </a>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="feature-card">
+                    <i class="fas fa-database feature-icon" style="color: var(--secondary-color);"></i>
+                    <h4>Estadísticas del Sistema</h4>
+                    <div id="dashboard-stats">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2">Cargando estadísticas...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-section">
+        <div class="container">
+            <div class="row">
+                <div class="col-12 text-center mb-4">
+                    <h3>Resumen del Sistema</h3>
+                    <p class="text-muted">Datos actualizados en tiempo real</p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number text-primary" id="total-hechos">-</div>
+                        <p class="text-muted">Registros de Cosecha</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number text-success" id="total-fincas">-</div>
+                        <p class="text-muted">Fincas</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number text-warning" id="total-variedades">-</div>
+                        <p class="text-muted">Variedades</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number text-info" id="total-zonas">-</div>
+                        <p class="text-muted">Zonas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Cargar estadísticas del sistema
+        async function loadDashboardStats() {
+            try {
+                const response = await fetch('/api/estadisticas');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const stats = result.data;
+                    const statsDiv = document.getElementById('dashboard-stats');
+                    
+                    statsDiv.innerHTML = `
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h4 class="text-primary">${stats.total_hechos_cosecha.toLocaleString()}</h4>
+                                <small class="text-muted">Registros de Cosecha</small>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="text-success">${stats.total_dimfinca}</h4>
+                                <small class="text-muted">Fincas</small>
+                            </div>
+                        </div>
+                        <div class="row text-center mt-3">
+                            <div class="col-6">
+                                <h4 class="text-info">${stats.total_dimvariedad}</h4>
+                                <small class="text-muted">Variedades</small>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="text-warning">${stats.total_toneladas.toLocaleString()}</h4>
+                                <small class="text-muted">Toneladas Totales</small>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Actualizar también las estadísticas de la sección inferior
+                    document.getElementById('total-hechos').textContent = stats.total_hechos_cosecha || 0;
+                    document.getElementById('total-fincas').textContent = stats.total_dimfinca || 0;
+                    document.getElementById('total-variedades').textContent = stats.total_dimvariedad || 0;
+                    document.getElementById('total-zonas').textContent = stats.total_dimzona || 0;
+                }
+            } catch (error) {
+                console.error('Error loading dashboard stats:', error);
+                document.getElementById('dashboard-stats').innerHTML = `
+                    <p class="text-muted">No se pudieron cargar las estadísticas</p>
+                `;
+            }
+        }
+
+        // Cargar estadísticas al cargar la página
+        document.addEventListener('DOMContentLoaded', loadDashboardStats);
+    </script>
+</body>
+</html>

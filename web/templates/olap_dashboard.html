@@ -1,0 +1,733 @@
+{% extends "base.html" %}
+
+{% block title %}Análisis OLAP - SugarBI{% endblock %}
+
+{% block content %}
+    <style>
+        .olap-container {
+            background: #f8f9fa;
+            min-height: calc(100vh - 76px);
+            padding: 20px 0;
+        }
+        .olap-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e9ecef;
+        }
+        .operation-badge {
+            font-size: 0.8rem;
+            padding: 0.3rem 0.8rem;
+        }
+        .dimension-selector {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .measure-selector {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .filter-selector {
+            background: #fff3e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .result-card {
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .sql-display {
+            background: #2d3748;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .metric-card.warning {
+            background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        }
+        .metric-card.info {
+            background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%);
+        }
+        .metric-card.primary {
+            background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .operation-btn {
+            margin: 5px;
+            border-radius: 20px;
+        }
+        .loading {
+            display: none;
+        }
+        .loading.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="olap-container">
+        <div class="container-fluid">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/"><i class="fas fa-home"></i> Inicio</a></li>
+                    <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-cube"></i> Análisis OLAP</li>
+                </ol>
+            </nav>
+            
+            <div class="row">
+                <!-- Panel de Control OLAP -->
+                <div class="col-lg-4">
+                    <div class="olap-card p-4 mb-4">
+                        <h3 class="text-center mb-4">
+                            <i class="fas fa-cube text-primary"></i>
+                            Análisis OLAP
+                        </h3>
+                        
+                        <!-- Navegación Rápida -->
+                        <div class="mb-4">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                <a href="/dashboard-alternativo" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                                </a>
+                                <a href="/chatbot" class="btn btn-outline-success btn-sm">
+                                    <i class="fas fa-robot"></i> Chatbot
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Operaciones OLAP -->
+                        <div class="mb-4">
+                            <h5><i class="fas fa-tools"></i> Operaciones</h5>
+                            <div class="d-flex flex-wrap">
+                                <button class="btn btn-outline-primary operation-btn" data-operation="aggregate">
+                                    <i class="fas fa-plus"></i> Agregar
+                                </button>
+                                <button class="btn btn-outline-success operation-btn" data-operation="drill_down">
+                                    <i class="fas fa-search-plus"></i> Drill-Down
+                                </button>
+                                <button class="btn btn-outline-warning operation-btn" data-operation="roll_up">
+                                    <i class="fas fa-search-minus"></i> Roll-Up
+                                </button>
+                                <button class="btn btn-outline-info operation-btn" data-operation="slice">
+                                    <i class="fas fa-cut"></i> Slice
+                                </button>
+                                <button class="btn btn-outline-danger operation-btn" data-operation="dice">
+                                    <i class="fas fa-dice"></i> Dice
+                                </button>
+                                <button class="btn btn-outline-secondary operation-btn" data-operation="pivot">
+                                    <i class="fas fa-sync"></i> Pivot
+                                </button>
+                            </div>
+                            <div class="mt-2">
+                                <span class="badge bg-primary operation-badge" id="selected-operation">Agregar</span>
+                            </div>
+                        </div>
+
+                        <!-- Dimensiones -->
+                        <div class="dimension-selector">
+                            <h6><i class="fas fa-layer-group"></i> Dimensiones</h6>
+                            <div class="form-check">
+                                <input class="form-check-input dimension-check" type="checkbox" value="tiempo" id="dim-tiempo">
+                                <label class="form-check-label" for="dim-tiempo">
+                                    Tiempo
+                                </label>
+                                <select class="form-select form-select-sm mt-1 dimension-level" data-dimension="tiempo" disabled>
+                                    <option value="year">Año</option>
+                                    <option value="quarter">Trimestre</option>
+                                    <option value="month">Mes</option>
+                                    <option value="date">Fecha</option>
+                                </select>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input dimension-check" type="checkbox" value="geografia" id="dim-geografia">
+                                <label class="form-check-label" for="dim-geografia">
+                                    Geografía
+                                </label>
+                                <select class="form-select form-select-sm mt-1 dimension-level" data-dimension="geografia" disabled>
+                                    <option value="zone">Zona</option>
+                                    <option value="farm">Finca</option>
+                                </select>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input dimension-check" type="checkbox" value="producto" id="dim-producto">
+                                <label class="form-check-label" for="dim-producto">
+                                    Producto
+                                </label>
+                                <select class="form-select form-select-sm mt-1 dimension-level" data-dimension="producto" disabled>
+                                    <option value="variety">Variedad</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Medidas -->
+                        <div class="measure-selector">
+                            <h6><i class="fas fa-chart-bar"></i> Medidas</h6>
+                            <div class="form-check">
+                                <input class="form-check-input measure-check" type="checkbox" value="toneladas" id="meas-toneladas">
+                                <label class="form-check-label" for="meas-toneladas">Toneladas</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input measure-check" type="checkbox" value="tch" id="meas-tch">
+                                <label class="form-check-label" for="meas-tch">TCH</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input measure-check" type="checkbox" value="brix" id="meas-brix">
+                                <label class="form-check-label" for="meas-brix">Brix</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input measure-check" type="checkbox" value="sacarosa" id="meas-sacarosa">
+                                <label class="form-check-label" for="meas-sacarosa">Sacarosa</label>
+                            </div>
+                        </div>
+
+                        <!-- Funciones de Agregación -->
+                        <div class="mb-3">
+                            <h6><i class="fas fa-calculator"></i> Agregaciones</h6>
+                            <div class="d-flex flex-wrap">
+                                <div class="form-check me-3">
+                                    <input class="form-check-input agg-check" type="checkbox" value="sum" id="agg-sum" checked>
+                                    <label class="form-check-label" for="agg-sum">Suma</label>
+                                </div>
+                                <div class="form-check me-3">
+                                    <input class="form-check-input agg-check" type="checkbox" value="avg" id="agg-avg">
+                                    <label class="form-check-label" for="agg-avg">Promedio</label>
+                                </div>
+                                <div class="form-check me-3">
+                                    <input class="form-check-input agg-check" type="checkbox" value="max" id="agg-max">
+                                    <label class="form-check-label" for="agg-max">Máximo</label>
+                                </div>
+                                <div class="form-check me-3">
+                                    <input class="form-check-input agg-check" type="checkbox" value="min" id="agg-min">
+                                    <label class="form-check-label" for="agg-min">Mínimo</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Filtros -->
+                        <div class="filter-selector">
+                            <h6><i class="fas fa-filter"></i> Filtros</h6>
+                            <div class="row">
+                                <div class="col-6">
+                                    <label class="form-label">Año</label>
+                                    <input type="number" class="form-control form-control-sm" id="filter-year" placeholder="2025">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Mes</label>
+                                    <input type="number" class="form-control form-control-sm" id="filter-month" placeholder="8">
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <label class="form-label">Zona</label>
+                                    <input type="text" class="form-control form-control-sm" id="filter-zone" placeholder="Zona Norte">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Opciones -->
+                        <div class="mb-3">
+                            <h6><i class="fas fa-cog"></i> Opciones</h6>
+                            <div class="row">
+                                <div class="col-6">
+                                    <label class="form-label">Límite</label>
+                                    <input type="number" class="form-control form-control-sm" id="limit" value="100">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Ordenar por</label>
+                                    <select class="form-select form-select-sm" id="sort-by">
+                                        <option value="">Ninguno</option>
+                                        <option value="toneladas_sum">Toneladas (Suma)</option>
+                                        <option value="tch_avg">TCH (Promedio)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" id="execute-query">
+                                <i class="fas fa-play"></i> Ejecutar Consulta
+                            </button>
+                            <button class="btn btn-outline-secondary" id="load-examples">
+                                <i class="fas fa-book"></i> Cargar Ejemplos
+                            </button>
+                            <button class="btn btn-outline-info" id="export-data">
+                                <i class="fas fa-download"></i> Exportar Datos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel de Resultados -->
+                <div class="col-lg-8">
+                    <!-- Métricas de Ejecución -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="metric-card primary">
+                                <div class="metric-value" id="execution-time">0.000s</div>
+                                <div class="metric-label">Tiempo de Ejecución</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <div class="metric-value" id="record-count">0</div>
+                                <div class="metric-label">Registros</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card warning">
+                                <div class="metric-value" id="operation-type">-</div>
+                                <div class="metric-label">Operación</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card info">
+                                <div class="metric-value" id="dimension-count">0</div>
+                                <div class="metric-label">Dimensiones</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico -->
+                    <div class="olap-card p-4 mb-4">
+                        <h5><i class="fas fa-chart-line"></i> Visualización</h5>
+                        <div class="loading" id="chart-loading">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2">Generando visualización...</p>
+                            </div>
+                        </div>
+                        <canvas id="olapChart" width="400" height="200"></canvas>
+                    </div>
+
+                    <!-- Tabla de Datos -->
+                    <div class="olap-card p-4 mb-4">
+                        <h5><i class="fas fa-table"></i> Datos</h5>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="data-table">
+                                <thead class="table-dark">
+                                    <tr id="table-headers"></tr>
+                                </thead>
+                                <tbody id="table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Consulta SQL -->
+                    <div class="olap-card p-4">
+                        <h5><i class="fas fa-code"></i> Consulta SQL Generada</h5>
+                        <div class="sql-display" id="sql-query">
+                            Seleccione dimensiones y medidas, luego ejecute una consulta para ver el SQL generado.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Ejemplos -->
+    <div class="modal fade" id="examplesModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ejemplos de Consultas OLAP</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="examples-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentChart = null;
+        let currentData = [];
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeEventListeners();
+            loadExamples();
+        });
+
+        function initializeEventListeners() {
+            // Operaciones OLAP
+            document.querySelectorAll('.operation-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.operation-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById('selected-operation').textContent = this.textContent.trim();
+                });
+            });
+
+            // Dimensiones
+            document.querySelectorAll('.dimension-check').forEach(check => {
+                check.addEventListener('change', function() {
+                    const levelSelect = document.querySelector(`[data-dimension="${this.value}"]`);
+                    levelSelect.disabled = !this.checked;
+                });
+            });
+
+            // Ejecutar consulta
+            document.getElementById('execute-query').addEventListener('click', executeOLAPQuery);
+            document.getElementById('load-examples').addEventListener('click', () => {
+                new bootstrap.Modal(document.getElementById('examplesModal')).show();
+            });
+            document.getElementById('export-data').addEventListener('click', exportData);
+        }
+
+        async function executeOLAPQuery() {
+            const query = buildOLAPQuery();
+            if (!query.measures.length) {
+                alert('Seleccione al menos una medida');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                const response = await fetch('/api/olap/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(query)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayResults(result.data);
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error de conexión: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function buildOLAPQuery() {
+            const operation = document.querySelector('.operation-btn.active')?.dataset.operation || 'aggregate';
+            
+            // Dimensiones
+            const dimensions = [];
+            const dimensionLevels = {};
+            document.querySelectorAll('.dimension-check:checked').forEach(check => {
+                dimensions.push(check.value);
+                const levelSelect = document.querySelector(`[data-dimension="${check.value}"]`);
+                dimensionLevels[check.value] = levelSelect.value;
+            });
+
+            // Medidas
+            const measures = [];
+            document.querySelectorAll('.measure-check:checked').forEach(check => {
+                measures.push(check.value);
+            });
+
+            // Funciones de agregación
+            const aggregationFunctions = [];
+            document.querySelectorAll('.agg-check:checked').forEach(check => {
+                aggregationFunctions.push(check.value);
+            });
+
+            // Filtros
+            const filters = {};
+            const year = document.getElementById('filter-year').value;
+            const month = document.getElementById('filter-month').value;
+            const zone = document.getElementById('filter-zone').value;
+
+            if (year) filters.año = parseInt(year);
+            if (month) filters.mes = parseInt(month);
+            if (zone) filters.zona = zone;
+
+            return {
+                operation: operation,
+                measures: measures,
+                dimensions: dimensions,
+                dimension_levels: dimensionLevels,
+                filters: filters,
+                aggregation_functions: aggregationFunctions,
+                limit: parseInt(document.getElementById('limit').value) || 100,
+                sort_by: document.getElementById('sort-by').value || null
+            };
+        }
+
+        function displayResults(data) {
+            // Actualizar métricas
+            document.getElementById('execution-time').textContent = data.execution_time.toFixed(3) + 's';
+            document.getElementById('record-count').textContent = data.record_count;
+            document.getElementById('operation-type').textContent = data.operation;
+            document.getElementById('dimension-count').textContent = data.metadata.dimensions.length;
+
+            // Actualizar consulta SQL
+            document.getElementById('sql-query').textContent = data.sql_query;
+
+            // Actualizar tabla
+            updateDataTable(data.records);
+
+            // Actualizar gráfico
+            updateChart(data.records, data.metadata);
+
+            currentData = data.records;
+        }
+
+        function updateDataTable(records) {
+            const headers = document.getElementById('table-headers');
+            const body = document.getElementById('table-body');
+
+            if (records.length === 0) {
+                headers.innerHTML = '<th>No hay datos</th>';
+                body.innerHTML = '<tr><td colspan="100%">No se encontraron registros</td></tr>';
+                return;
+            }
+
+            // Headers
+            const columns = Object.keys(records[0]);
+            headers.innerHTML = columns.map(col => `<th>${col.replace(/_/g, ' ').toUpperCase()}</th>`).join('');
+
+            // Body
+            body.innerHTML = records.map(record => 
+                `<tr>${columns.map(col => `<td>${record[col]}</td>`).join('')}</tr>`
+            ).join('');
+        }
+
+        function updateChart(records, metadata) {
+            const ctx = document.getElementById('olapChart').getContext('2d');
+            
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            if (records.length === 0) {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.fillText('No hay datos para mostrar', 50, 50);
+                return;
+            }
+
+            // Determinar tipo de gráfico
+            const chartType = determineChartType(records, metadata);
+            
+            // Preparar datos
+            const chartData = prepareChartData(records, metadata, chartType);
+
+            currentChart = new Chart(ctx, {
+                type: chartType,
+                data: chartData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Análisis OLAP - ${metadata.operation.toUpperCase()}`
+                        },
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: chartType === 'bar' || chartType === 'line' ? {
+                        y: {
+                            beginAtZero: true
+                        }
+                    } : undefined
+                }
+            });
+        }
+
+        function determineChartType(records, metadata) {
+            if (metadata.dimensions.length === 1) {
+                return 'bar';
+            } else if (metadata.dimensions.length === 2) {
+                return 'line';
+            } else {
+                return 'bar';
+            }
+        }
+
+        function prepareChartData(records, metadata, chartType) {
+            const columns = Object.keys(records[0]);
+            const dimensionCols = columns.filter(col => 
+                col.includes('_year') || col.includes('_month') || col.includes('_zone') || 
+                col.includes('_farm') || col.includes('_variety')
+            );
+            const measureCols = columns.filter(col => 
+                col.includes('_sum') || col.includes('_avg') || col.includes('_max') || col.includes('_min')
+            );
+
+            if (chartType === 'bar' || chartType === 'line') {
+                const labels = records.map(record => {
+                    if (dimensionCols.length > 0) {
+                        return record[dimensionCols[0]] || 'N/A';
+                    }
+                    return 'Registro ' + (records.indexOf(record) + 1);
+                });
+
+                const datasets = measureCols.map((col, index) => ({
+                    label: col.replace(/_/g, ' ').toUpperCase(),
+                    data: records.map(record => parseFloat(record[col]) || 0),
+                    backgroundColor: `hsl(${index * 60}, 70%, 50%)`,
+                    borderColor: `hsl(${index * 60}, 70%, 40%)`,
+                    borderWidth: 1
+                }));
+
+                return { labels, datasets };
+            } else if (chartType === 'pie') {
+                const labels = records.map(record => record[dimensionCols[0]] || 'N/A');
+                const data = records.map(record => parseFloat(record[measureCols[0]]) || 0);
+
+                return {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor: labels.map((_, index) => `hsl(${index * 40}, 70%, 50%)`)
+                    }]
+                };
+            }
+
+            return { labels: [], datasets: [] };
+        }
+
+        async function loadExamples() {
+            try {
+                const response = await fetch('/api/olap/examples');
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayExamples(result.data.examples);
+                }
+            } catch (error) {
+                console.error('Error cargando ejemplos:', error);
+            }
+        }
+
+        function displayExamples(examples) {
+            const container = document.getElementById('examples-list');
+            container.innerHTML = examples.map(example => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">${example.name}</h6>
+                        <p class="card-text">${example.description}</p>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadExample(${JSON.stringify(example).replace(/"/g, '&quot;')})">
+                            <i class="fas fa-play"></i> Cargar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadExample(example) {
+            // Limpiar selecciones
+            document.querySelectorAll('.dimension-check').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.measure-check').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.dimension-level').forEach(select => select.disabled = true);
+
+            // Cargar dimensiones
+            example.dimensions.forEach(dim => {
+                const checkbox = document.getElementById(`dim-${dim}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                    const levelSelect = document.querySelector(`[data-dimension="${dim}"]`);
+                    if (levelSelect && example.dimension_levels[dim]) {
+                        levelSelect.value = example.dimension_levels[dim];
+                        levelSelect.disabled = false;
+                    }
+                }
+            });
+
+            // Cargar medidas
+            example.measures.forEach(measure => {
+                const checkbox = document.getElementById(`meas-${measure}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+
+            // Cargar operación
+            const operationBtn = document.querySelector(`[data-operation="${example.operation}"]`);
+            if (operationBtn) {
+                document.querySelectorAll('.operation-btn').forEach(b => b.classList.remove('active'));
+                operationBtn.classList.add('active');
+                document.getElementById('selected-operation').textContent = operationBtn.textContent.trim();
+            }
+
+            // Cargar filtros
+            if (example.filters) {
+                if (example.filters.año) {
+                    document.getElementById('filter-year').value = example.filters.año;
+                }
+                if (example.filters.mes) {
+                    document.getElementById('filter-month').value = example.filters.mes;
+                }
+                if (example.filters.zona) {
+                    document.getElementById('filter-zone').value = example.filters.zona;
+                }
+            }
+
+            // Cerrar modal
+            bootstrap.Modal.getInstance(document.getElementById('examplesModal')).hide();
+        }
+
+        function exportData() {
+            if (currentData.length === 0) {
+                alert('No hay datos para exportar');
+                return;
+            }
+
+            const csv = convertToCSV(currentData);
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'olap_data.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function convertToCSV(data) {
+            if (data.length === 0) return '';
+            
+            const headers = Object.keys(data[0]);
+            const csvHeaders = headers.join(',');
+            const csvRows = data.map(row => 
+                headers.map(header => `"${row[header] || ''}"`).join(',')
+            );
+            
+            return [csvHeaders, ...csvRows].join('\n');
+        }
+
+        function showLoading(show) {
+            document.getElementById('chart-loading').classList.toggle('show', show);
+        }
+    </script>
+{% endblock %}

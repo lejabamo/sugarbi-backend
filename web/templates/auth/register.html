@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Registro - SugarBI{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-user-plus fa-3x text-primary mb-3"></i>
+                        <h2 class="card-title">Crear Cuenta</h2>
+                        <p class="text-muted">Únete a SugarBI y comienza a analizar tus datos</p>
+                    </div>
+
+                    <!-- Mostrar mensajes flash -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.first_name.id }}" class="form-label">
+                                    <i class="fas fa-user"></i> Nombre
+                                </label>
+                                {{ form.first_name(class="form-control" + (" is-invalid" if form.first_name.errors else ""), placeholder="Tu nombre") }}
+                                {% if form.first_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.first_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.last_name.id }}" class="form-label">
+                                    <i class="fas fa-user"></i> Apellido
+                                </label>
+                                {{ form.last_name(class="form-control" + (" is-invalid" if form.last_name.errors else ""), placeholder="Tu apellido") }}
+                                {% if form.last_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.last_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.username.id }}" class="form-label">
+                                <i class="fas fa-at"></i> Nombre de Usuario
+                            </label>
+                            {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="usuario123") }}
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.username.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Entre 3 y 20 caracteres, solo letras, números y guiones bajos</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.email.id }}" class="form-label">
+                                <i class="fas fa-envelope"></i> Email
+                            </label>
+                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), placeholder="tu@email.com") }}
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.email.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.password.id }}" class="form-label">
+                                <i class="fas fa-lock"></i> Contraseña
+                            </label>
+                            {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), placeholder="Mínimo 8 caracteres") }}
+                            {% if form.password.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.password.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Debe contener al menos: 8 caracteres, 1 mayúscula, 1 minúscula, 1 número y 1 carácter especial
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.password2.id }}" class="form-label">
+                                <i class="fas fa-lock"></i> Confirmar Contraseña
+                            </label>
+                            {{ form.password2(class="form-control" + (" is-invalid" if form.password2.errors else ""), placeholder="Repite tu contraseña") }}
+                            {% if form.password2.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.password2.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-user-plus"></i> Crear Cuenta
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <p class="mb-0">¿Ya tienes una cuenta?</p>
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información adicional -->
+            <div class="text-center mt-4">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card border-0">
+                            <div class="card-body">
+                                <i class="fas fa-shield-alt fa-2x text-success mb-2"></i>
+                                <h6>Seguro</h6>
+                                <small class="text-muted">Datos protegidos con encriptación</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0">
+                            <div class="card-body">
+                                <i class="fas fa-chart-line fa-2x text-primary mb-2"></i>
+                                <h6>Analytics</h6>
+                                <small class="text-muted">Análisis avanzado de datos</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0">
+                            <div class="card-body">
+                                <i class="fas fa-robot fa-2x text-warning mb-2"></i>
+                                <h6>IA</h6>
+                                <small class="text-muted">Chatbot inteligente</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border: none;
+    border-radius: 15px;
+}
+
+.btn {
+    border-radius: 10px;
+}
+
+.form-control {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.alert {
+    border-radius: 10px;
+}
+
+.fa-3x {
+    color: #0d6efd;
+}
+</style>
+{% endblock %}
+
+
+

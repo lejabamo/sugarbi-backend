@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Integrado - SugarBI{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <h1><i class="fas fa-chart-line"></i> Dashboard Integrado SugarBI</h1>
+            <p class="text-muted">Análisis inteligente de datos de cosecha con chatbot integrado</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Chatbot Panel (25% del ancho) -->
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-comments"></i> Conversación</h5>
+                </div>
+                <div class="card-body p-0 d-flex flex-column">
+                    <!-- Chat Messages -->
+                    <div id="chat-container" class="chat-container flex-grow-1 p-3" style="max-height: 500px; overflow-y: auto;">
+                        <div class="message bot-message mb-3">
+                            <div class="d-flex align-items-start">
+                                <div class="avatar bg-primary text-white rounded-circle me-2" style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-robot fa-sm"></i>
+                                </div>
+                                <div class="message-content">
+                                    <strong>SugarBI:</strong>
+                                    <p class="mb-2">¡Hola! Soy tu asistente de análisis de datos de cosecha. Puedes preguntarme cosas como:</p>
+                                    <ul class="mb-0 small">
+                                        <li>"Muéstrame el top 10 de fincas por producción"</li>
+                                        <li>"¿Cuáles son las mejores variedades por TCH?"</li>
+                                        <li>"Muéstrame la producción por zona en 2025"</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Input Area -->
+                    <div class="p-3 border-top">
+                        <div class="input-group">
+                            <input type="text" id="query-input" class="form-control" 
+                                   placeholder="Escribe tu consulta aquí..." 
+                                   onkeypress="handleKeyPress(event)">
+                            <button class="btn btn-primary" onclick="sendQuery()">
+                                <i class="fas fa-paper-plane"></i> Enviar
+                            </button>
+                        </div>
+                        <div id="loading" class="loading text-center mt-2" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Procesando...</span>
+                            </div>
+                            <span class="ms-2">Procesando consulta...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization Panel (75% del ancho) -->
+        <div class="col-md-9">
+            <div class="row">
+                <!-- Main Content (8/9 columns) -->
+                <div class="col-md-8">
+                    <!-- Main Visualization Card -->
+                    <div class="card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-chart-line"></i> Visualización</h5>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="exportData()">
+                                    <i class="fas fa-download"></i> Exportar
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="refreshVisualization()">
+                                    <i class="fas fa-sync-alt"></i> Actualizar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- Chart Container -->
+                            <div id="chart-container" class="chart-container" style="height: 400px;">
+                                <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                                    <div class="text-center">
+                                        <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                                        <h5>Haz una consulta para ver la visualización</h5>
+                                        <p>Usa el chatbot de la izquierda para comenzar</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Table -->
+                    <div class="card" id="data-section" style="display: none;">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-table"></i> Datos Detallados</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-sm" id="results-table">
+                                    <thead id="table-head"></thead>
+                                    <tbody id="table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SQL Query Card -->
+                    <div class="card mt-3" id="sql-card" style="display: none;">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-code"></i> Consulta SQL Generada</h6>
+                        </div>
+                        <div class="card-body">
+                            <pre class="bg-light p-3 rounded"><code id="sql-query"></code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar (1/9 columns) -->
+                <div class="col-md-4">
+                    <!-- Query Analysis Cards -->
+                    <div id="analysis-cards" style="display: none;">
+                        <div class="card text-center mb-3">
+                            <div class="card-body">
+                                <i class="fas fa-search fa-2x text-info mb-2"></i>
+                                <h6 class="card-title">Tipo de Consulta</h6>
+                                <p class="card-text" id="query-type">-</p>
+                            </div>
+                        </div>
+                        <div class="card text-center mb-3">
+                            <div class="card-body">
+                                <i class="fas fa-chart-bar fa-2x text-success mb-2"></i>
+                                <h6 class="card-title">Métrica</h6>
+                                <p class="card-text" id="query-metric">-</p>
+                            </div>
+                        </div>
+                        <div class="card text-center mb-3">
+                            <div class="card-body">
+                                <i class="fas fa-layer-group fa-2x text-warning mb-2"></i>
+                                <h6 class="card-title">Dimensión</h6>
+                                <p class="card-text" id="query-dimension">-</p>
+                            </div>
+                        </div>
+                        <div class="card text-center mb-3">
+                            <div class="card-body">
+                                <i class="fas fa-database fa-2x text-primary mb-2"></i>
+                                <h6 class="card-title">Registros</h6>
+                                <p class="card-text" id="query-records">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Placeholder when no analysis -->
+                    <div id="analysis-placeholder">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+                                <h6 class="card-title">Análisis de Consulta</h6>
+                                <p class="card-text text-muted">Haz una consulta para ver el análisis aquí</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.chat-container {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+}
+
+.message {
+    margin-bottom: 15px;
+}
+
+.user-message .message-content {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 18px 18px 4px 18px;
+    margin-left: 20px;
+    max-width: 80%;
+}
+
+.bot-message .message-content {
+    background-color: white;
+    color: #333;
+    padding: 10px 15px;
+    border-radius: 18px 18px 18px 4px;
+    border: 1px solid #dee2e6;
+    margin-right: 20px;
+    max-width: 90%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.avatar {
+    flex-shrink: 0;
+}
+
+.chart-container {
+    position: relative;
+    background-color: #fafafa;
+    border-radius: 0.375rem;
+}
+
+.loading {
+    color: #6c757d;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    border-radius: 0.5rem;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+}
+
+#analysis-cards .card {
+    transition: transform 0.2s ease-in-out;
+    margin-bottom: 1rem;
+}
+
+#analysis-cards .card:hover {
+    transform: translateY(-2px);
+}
+
+#analysis-cards .card-body {
+    padding: 1rem 0.75rem;
+}
+
+#analysis-cards .card-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+#analysis-cards .card-text {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+/* Estilo para el placeholder */
+#analysis-placeholder .card {
+    border: 2px dashed #dee2e6;
+    background-color: #f8f9fa;
+}
+
+#analysis-placeholder .card-body {
+    padding: 2rem 1rem;
+}
+
+/* Mejorar el input del chatbot */
+#query-input {
+    border-radius: 0.375rem;
+    border: 1px solid #ced4da;
+}
+
+#query-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Estilo para la tabla de datos */
+.table {
+    font-size: 0.875rem;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-top: none;
+}
+
+/* Estilo para el código SQL */
+pre {
+    font-size: 0.8rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .col-md-3, .col-md-9 {
+        margin-bottom: 1rem;
+    }
+    
+    .message-content {
+        max-width: 95% !important;
+        margin-left: 10px !important;
+        margin-right: 10px !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let currentChart = null;
+let currentData = null;
+
+// Manejar Enter en el input
+function handleKeyPress(event) {
+    if (event.key === 'Enter') {
+        sendQuery();
+    }
+}
+
+// Enviar consulta
+async function sendQuery() {
+    const queryInput = document.getElementById('query-input');
+    const query = queryInput.value.trim();
+    
+    if (!query) {
+        showError('Por favor, escribe una consulta');
+        return;
+    }
+    
+    // Agregar mensaje del usuario al chat
+    addMessageToChat(query, 'user');
+    
+    // Limpiar input
+    queryInput.value = '';
+    
+    // Mostrar loading
+    showLoading('loading');
+    
+    try {
+        // Enviar consulta al servidor
+        console.log('🔍 DEBUG: Enviando consulta:', query);
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: query })
+        });
+        
+        console.log('🔍 DEBUG: Respuesta recibida, status:', response.status);
+        const result = await response.json();
+        console.log('🔍 DEBUG: Resultado parseado:', result);
+        
+        if (result.success) {
+            // Mostrar respuesta del bot
+            addMessageToChat('Consulta procesada exitosamente. Aquí están los resultados:', 'bot');
+            
+            // Mostrar análisis de la consulta
+            showQueryAnalysis(result.data.intent, result.data.record_count);
+            
+            // Mostrar visualización
+            showVisualization(result.data.visualization, result.data.raw_data);
+            
+            // Mostrar SQL
+            showSQLQuery(result.data.sql);
+            
+            // Guardar datos actuales
+            currentData = result.data.raw_data;
+            
+        } else {
+            const errorMessage = result.error || 'Error desconocido';
+            addMessageToChat(`Error: ${errorMessage}`, 'bot');
+            showError(errorMessage);
+        }
+        
+    } catch (error) {
+        addMessageToChat(`Error de conexión: ${error.message}`, 'bot');
+        showError('Error de conexión con el servidor');
+    } finally {
+        hideLoading('loading');
+    }
+}
+
+// Agregar mensaje al chat
+function addMessageToChat(message, sender) {
+    const chatContainer = document.getElementById('chat-container');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message mb-2`;
+    
+    const icon = sender === 'user' ? 'fas fa-user' : 'fas fa-robot';
+    const name = sender === 'user' ? 'Tú' : 'SugarBI';
+    
+    messageDiv.innerHTML = `
+        <div class="d-flex align-items-start">
+            <div class="avatar bg-${sender === 'user' ? 'success' : 'primary'} text-white rounded-circle me-2" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
+                <i class="${icon} fa-sm"></i>
+            </div>
+            <div class="message-content">
+                <strong>${name}:</strong>
+                <p class="mb-0">${message}</p>
+            </div>
+        </div>
+    `;
+    
+    chatContainer.appendChild(messageDiv);
+    
+    // Scroll to bottom
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+// Mostrar análisis de la consulta
+function showQueryAnalysis(intent, recordCount) {
+    document.getElementById('query-type').textContent = intent.type.replace('_', ' ').toUpperCase();
+    document.getElementById('query-metric').textContent = intent.metric.replace('_', ' ').toUpperCase();
+    document.getElementById('query-dimension').textContent = intent.dimension.replace('_', ' ').toUpperCase();
+    document.getElementById('query-records').textContent = recordCount || 0;
+    
+    document.getElementById('analysis-cards').style.display = 'block';
+    document.getElementById('analysis-placeholder').style.display = 'none';
+}
+
+// Mostrar visualización
+function showVisualization(vizConfig, rawData) {
+    const chartContainer = document.getElementById('chart-container');
+    
+    // Destruir gráfico anterior si existe
+    if (currentChart) {
+        currentChart.destroy();
+    }
+    
+    // Limpiar contenedor
+    chartContainer.innerHTML = '<canvas id="result-chart"></canvas>';
+    
+    // Crear nuevo gráfico
+    const ctx = document.getElementById('result-chart').getContext('2d');
+    currentChart = new Chart(ctx, vizConfig);
+    
+    // Mostrar tabla de datos
+    showDataTable(rawData);
+}
+
+// Mostrar tabla de datos
+function showDataTable(data) {
+    if (!data || data.length === 0) {
+        document.getElementById('data-section').style.display = 'none';
+        return;
+    }
+    
+    const tableHead = document.getElementById('table-head');
+    const tableBody = document.getElementById('table-body');
+    
+    // Limpiar tabla
+    tableHead.innerHTML = '';
+    tableBody.innerHTML = '';
+    
+    // Crear encabezados
+    const headers = Object.keys(data[0]);
+    const headerRow = document.createElement('tr');
+    headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header.replace('_', ' ').toUpperCase();
+        headerRow.appendChild(th);
+    });
+    tableHead.appendChild(headerRow);
+    
+    // Crear filas de datos
+    data.forEach(row => {
+        const tr = document.createElement('tr');
+        headers.forEach(header => {
+            const td = document.createElement('td');
+            td.textContent = row[header] || '-';
+            tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+    });
+    
+    document.getElementById('data-section').style.display = 'block';
+}
+
+// Mostrar consulta SQL
+function showSQLQuery(sql) {
+    document.getElementById('sql-query').textContent = sql;
+    document.getElementById('sql-card').style.display = 'block';
+}
+
+// Exportar datos
+function exportData() {
+    if (!currentData || currentData.length === 0) {
+        showError('No hay datos para exportar');
+        return;
+    }
+    
+    const csv = convertToCSV(currentData);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sugarbi_datos.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+// Convertir datos a CSV
+function convertToCSV(data) {
+    if (!data || data.length === 0) return '';
+    
+    const headers = Object.keys(data[0]);
+    const csvRows = [headers.join(',')];
+    
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header];
+            return typeof value === 'string' ? `"${value}"` : value;
+        });
+        csvRows.push(values.join(','));
+    });
+    
+    return csvRows.join('\n');
+}
+
+// Actualizar visualización
+function refreshVisualization() {
+    if (currentChart) {
+        currentChart.update();
+    }
+}
+
+// Mostrar loading
+function showLoading(elementId) {
+    document.getElementById(elementId).style.display = 'block';
+}
+
+// Ocultar loading
+function hideLoading(elementId) {
+    document.getElementById(elementId).style.display = 'none';
+}
+
+// Mostrar error
+function showError(message) {
+    // Crear notificación de error
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        <strong>Error:</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.parentNode.removeChild(alertDiv);
+        }
+    }, 5000);
+}
+
+// Cargar ejemplos de consultas al inicializar
+document.addEventListener('DOMContentLoaded', function() {
+    // Agregar algunos ejemplos de consultas rápidas
+    const examples = [
+        "top 5 fincas",
+        "mejores variedades por TCH",
+        "producción por zona",
+        "estadísticas generales"
+    ];
+    
+    // Crear botones de ejemplos
+    const chatContainer = document.getElementById('chat-container');
+    const examplesDiv = document.createElement('div');
+    examplesDiv.className = 'mt-3';
+    examplesDiv.innerHTML = '<small class="text-muted">Ejemplos rápidos:</small>';
+    
+    examples.forEach(example => {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-outline-primary btn-sm me-1 mb-1';
+        btn.textContent = example;
+        btn.onclick = () => {
+            document.getElementById('query-input').value = example;
+            sendQuery();
+        };
+        examplesDiv.appendChild(btn);
+    });
+    
+    chatContainer.appendChild(examplesDiv);
+});
+</script>
+{% endblock %}
